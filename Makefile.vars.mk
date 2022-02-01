@@ -1,8 +1,6 @@
 ## These are some common variables for Make
-
 PROJECT_ROOT_DIR = .
-# TODO: Adjust project meta
-PROJECT_NAME ?= go-bootstrap
+PROJECT_NAME ?= appuio-keycloak-adapter
 PROJECT_OWNER ?= vshn
 
 ## BUILD:go
