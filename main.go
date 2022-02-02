@@ -15,6 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	orgv1 "github.com/appuio/control-api/apis/organization/v1"
+	controlv1 "github.com/appuio/control-api/apis/v1"
+
 	"github.com/vshn/appuio-keycloak-adapter/controllers"
 	//+kubebuilder:scaffold:imports
 	"time"
@@ -34,7 +37,8 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(orgv1.AddToScheme(scheme))
+	utilruntime.Must(controlv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
