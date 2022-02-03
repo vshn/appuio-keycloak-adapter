@@ -3,7 +3,7 @@ module github.com/vshn/appuio-keycloak-adapter
 go 1.17
 
 require (
-	github.com/appuio/control-api v0.3.4
+	github.com/appuio/control-api v0.4.0
 	github.com/golang/mock v1.6.0
 	github.com/stretchr/testify v1.7.0
 	k8s.io/apimachinery v0.23.3

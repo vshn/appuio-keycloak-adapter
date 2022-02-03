@@ -94,10 +94,10 @@ var fooMemb = &controlv1.OrganizationMembers{
 	Spec: controlv1.OrganizationMembersSpec{
 		UserRefs: []controlv1.UserRef{
 			{
-				Username: "bar",
+				Name: "bar",
 			},
 			{
-				Username: "bar3",
+				Name: "bar3",
 			},
 		},
 	},

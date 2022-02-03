@@ -74,7 +74,7 @@ func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMem
 	groupMem := []string{}
 
 	for _, u := range memb.Spec.UserRefs {
-		groupMem = append(groupMem, u.Username)
+		groupMem = append(groupMem, u.Name)
 	}
 
 	return KeycloakGroup{
