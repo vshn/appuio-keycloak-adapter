@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	mock "github.com/vshn/appuio-keycloak-adapter/controllers/mock"
 	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +52,7 @@ func Test_Reconcile(t *testing.T) {
 				WithScheme(scheme).
 				WithObjects(tc.kubeState...).
 				Build()
-			keyMock := mock.NewMockKeycloakPutter(gomock.NewController(t))
+			keyMock := NewMockKeycloakPutter(gomock.NewController(t))
 			keyMock.EXPECT().
 				PutGroup(gomock.Any(), tc.group).
 				Return(tc.group, nil).

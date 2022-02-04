@@ -21,7 +21,7 @@ type OrganizationReconciler struct {
 	Keycloak KeycloakPutter
 }
 
-//go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./mock/keycloak-putter.go
+//go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./ZZ_mock_keycloak_putter_test.go -package controllers_test
 type KeycloakPutter interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 }
