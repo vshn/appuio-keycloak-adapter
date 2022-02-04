@@ -7,6 +7,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	mock "github.com/vshn/appuio-keycloak-adapter/controllers/mock"
+	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -33,13 +34,13 @@ func Test_Reconcile(t *testing.T) {
 
 		kubeState []client.Object
 
-		group    KeycloakGroup
+		group    keycloak.Group
 		errCheck func(err error) bool
 	}{
 		"GivenNormal_ThenSuccess": {
 			orgName:   "foo",
 			kubeState: []client.Object{fooOrg, fooMemb},
-			group: KeycloakGroup{
+			group: keycloak.Group{
 				Name:    "foo",
 				Members: []string{"bar", "bar3"},
 			},

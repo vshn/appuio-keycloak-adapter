@@ -5,6 +5,7 @@ import (
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
+	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,14 +21,9 @@ type OrganizationReconciler struct {
 	Keycloak KeycloakPutter
 }
 
-//go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./mock/keycloak.go
-type KeycloakGroup struct {
-	Name    string
-	Members []string
-}
-
+//go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./mock/keycloak-putter.go
 type KeycloakPutter interface {
-	PutGroup(ctx context.Context, group KeycloakGroup) (KeycloakGroup, error)
+	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 }
 
 //+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations,verbs=get;list;watch;create;update;patch;delete
@@ -44,6 +40,8 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	// TODO: Handle deletion
+
 	group := buildKeycloakGroup(org, orgMemb)
 
 	log.V(4).Info("Reconciling Keycloak group..")
@@ -51,6 +49,8 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
+	// TODO: Add finalizer
 
 	return ctrl.Result{}, nil
 }
@@ -70,14 +70,14 @@ func (r *OrganizationReconciler) GetOrganizationAndMembers(ctx context.Context, 
 	return org, memb, err
 }
 
-func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMembers) KeycloakGroup {
+func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMembers) keycloak.Group {
 	groupMem := []string{}
 
 	for _, u := range memb.Spec.UserRefs {
 		groupMem = append(groupMem, u.Name)
 	}
 
-	return KeycloakGroup{
+	return keycloak.Group{
 		Name:    org.Name,
 		Members: groupMem,
 	}
