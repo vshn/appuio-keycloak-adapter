@@ -33,6 +33,12 @@ func mockCreateGroup(mgc *MockGoCloak, c Client, groupName, groupID string) {
 		Return(groupID, nil).
 		Times(1)
 }
+func mockDeleteGroup(mgc *MockGoCloak, c Client, groupID string) {
+	mgc.EXPECT().
+		DeleteGroup(gomock.Any(), "token", c.Realm, groupID).
+		Return(nil).
+		Times(1)
+}
 
 func mockGetGroupMembers(mgc *MockGoCloak, c Client, groupID string, users []*gocloak.User) {
 	mgc.EXPECT().
