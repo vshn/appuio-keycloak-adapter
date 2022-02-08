@@ -39,21 +39,22 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log.V(4).WithValues("request", req).Info("Reconciling")
 
 	log.V(4).Info("Getting Organization and Members..")
-	org, orgMemb, err := r.GetOrganizationAndMembers(ctx, req.NamespacedName)
+	org, orgMemb, err := r.getOrganizationAndMembers(ctx, req.NamespacedName)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	if !org.ObjectMeta.DeletionTimestamp.IsZero() {
+		log.V(4).Info("Deleting Keycloak group..")
 		err = r.Keycloak.DeleteGroup(ctx, org.Name)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
-		err = r.RemoveFinalizer(ctx, org, orgMemb)
+		err = r.removeFinalizer(ctx, org, orgMemb)
 		return ctrl.Result{}, err
 	}
-	err = r.AddFinalizer(ctx, org, orgMemb)
+	err = r.addFinalizer(ctx, org, orgMemb)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -66,10 +67,16 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	log.V(4).Info("Updating status..")
+	err = r.updateOrganizationStatus(ctx, org, orgMemb, group)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
-func (r *OrganizationReconciler) GetOrganizationAndMembers(ctx context.Context, orgKey types.NamespacedName) (*orgv1.Organization, *controlv1.OrganizationMembers, error) {
+func (r *OrganizationReconciler) getOrganizationAndMembers(ctx context.Context, orgKey types.NamespacedName) (*orgv1.Organization, *controlv1.OrganizationMembers, error) {
 	org := &orgv1.Organization{}
 	if err := r.Get(ctx, orgKey, org); err != nil {
 		return org, nil, err
@@ -84,7 +91,7 @@ func (r *OrganizationReconciler) GetOrganizationAndMembers(ctx context.Context, 
 	return org, memb, err
 }
 
-func (r *OrganizationReconciler) AddFinalizer(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers) error {
+func (r *OrganizationReconciler) addFinalizer(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers) error {
 	if !controllerutil.ContainsFinalizer(memb, orgFinalizer) {
 		controllerutil.AddFinalizer(memb, orgFinalizer)
 		if err := r.Update(ctx, memb); err != nil {
@@ -99,7 +106,7 @@ func (r *OrganizationReconciler) AddFinalizer(ctx context.Context, org *orgv1.Or
 	}
 	return nil
 }
-func (r *OrganizationReconciler) RemoveFinalizer(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers) error {
+func (r *OrganizationReconciler) removeFinalizer(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers) error {
 	if controllerutil.ContainsFinalizer(org, orgFinalizer) {
 		controllerutil.RemoveFinalizer(org, orgFinalizer)
 		if err := r.Update(ctx, org); err != nil {
@@ -113,6 +120,17 @@ func (r *OrganizationReconciler) RemoveFinalizer(ctx context.Context, org *orgv1
 		}
 	}
 	return nil
+}
+
+func (r *OrganizationReconciler) updateOrganizationStatus(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers, group keycloak.Group) error {
+	userRefs := []controlv1.UserRef{}
+	for _, u := range group.Members {
+		userRefs = append(userRefs, controlv1.UserRef{
+			Name: u,
+		})
+	}
+	memb.Status.ResolvedUserRefs = userRefs
+	return r.Status().Update(ctx, memb)
 }
 
 func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMembers) keycloak.Group {
