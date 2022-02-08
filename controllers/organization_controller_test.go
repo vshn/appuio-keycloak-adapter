@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,60 +23,78 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
-func Test_Reconcile(t *testing.T) {
+func Test_Reconcile_Success(t *testing.T) {
+	ctx := context.Background()
+
+	c, keyMock := prepareTest(t, fooOrg, fooMemb)
+	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
+	keyMock.EXPECT().
+		PutGroup(gomock.Any(), group).
+		Return(group, nil).
+		Times(1)
+
+	_, err := (&OrganizationReconciler{
+		Client:   c,
+		Scheme:   &runtime.Scheme{},
+		Keycloak: keyMock,
+	}).Reconcile(ctx, ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "foo",
+		},
+	})
+	require.NoError(t, err)
+
+	newOrg := orgv1.Organization{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
+	assert.Len(t, newOrg.Finalizers, 1, "has finalizer")
+	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newOrg.Finalizers[0], "expected finalizer")
+	newMemb := controlv1.OrganizationMembers{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "members", Namespace: "foo"}, &newMemb))
+	assert.Len(t, newMemb.Finalizers, 1, "has finalizer")
+	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
+}
+
+func Test_Reconcile_Delete(t *testing.T) {
+	ctx := context.Background()
+
+	org := *fooOrg
+	now := metav1.Now()
+	org.DeletionTimestamp = &now
+	org.Finalizers = []string{"keycloak-adapter.vshn.net/finalizer"}
+
+	c, keyMock := prepareTest(t, &org, fooMemb)
+	keyMock.EXPECT().
+		DeleteGroup(gomock.Any(), "foo").
+		Return(nil).
+		Times(1)
+
+	_, err := (&OrganizationReconciler{
+		Client:   c,
+		Scheme:   &runtime.Scheme{},
+		Keycloak: keyMock,
+	}).Reconcile(ctx, ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "foo",
+		},
+	})
+	require.NoError(t, err)
+
+	newOrg := orgv1.Organization{}
+	require.Error(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
+}
+
+func prepareTest(t *testing.T, initObjs ...client.Object) (client.WithWatch, *MockKeycloakClient) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(orgv1.AddToScheme(scheme))
 	utilruntime.Must(controlv1.AddToScheme(scheme))
 
-	tcs := map[string]struct {
-		orgName string
-
-		kubeState []client.Object
-
-		group    keycloak.Group
-		errCheck func(err error) bool
-	}{
-		"GivenNormal_ThenSuccess": {
-			orgName:   "foo",
-			kubeState: []client.Object{fooOrg, fooMemb},
-			group: keycloak.Group{
-				Name:    "foo",
-				Members: []string{"bar", "bar3"},
-			},
-		},
-	}
-
-	for name, tc := range tcs {
-		t.Run(name, func(t *testing.T) {
-			c := fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(tc.kubeState...).
-				Build()
-			keyMock := NewMockKeycloakClient(gomock.NewController(t))
-			keyMock.EXPECT().
-				PutGroup(gomock.Any(), tc.group).
-				Return(tc.group, nil).
-				Times(1)
-
-			_, err := (&OrganizationReconciler{
-				Client:   c,
-				Scheme:   &runtime.Scheme{},
-				Keycloak: keyMock,
-			}).Reconcile(context.Background(), ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Name: "foo",
-				},
-			})
-			if tc.errCheck == nil {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				require.True(t, tc.errCheck(err))
-			}
-
-		})
-	}
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(initObjs...).
+		Build()
+	keyMock := NewMockKeycloakClient(gomock.NewController(t))
+	return c, keyMock
 }
 
 var fooOrg = &orgv1.Organization{

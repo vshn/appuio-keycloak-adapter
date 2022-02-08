@@ -23,6 +23,8 @@ type OrganizationReconciler struct {
 }
 
 //go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./ZZ_mock_keycloak_test.go -package controllers_test
+
+// KeycloakClient is an abstraction to interact with the Keycloak API
 type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 	DeleteGroup(ctx context.Context, groupName string) error
@@ -34,6 +36,7 @@ var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
 //+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations/finalizers,verbs=update
 
+// Reconcile reacts on changes of Organizations and OrganizationMembers and mirrors these changes to groups in Keycloak
 func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.V(4).WithValues("request", req).Info("Reconciling")
@@ -69,11 +72,7 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.V(4).Info("Updating status..")
 	err = r.updateOrganizationStatus(ctx, org, orgMemb, group)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, err
 }
 
 func (r *OrganizationReconciler) getOrganizationAndMembers(ctx context.Context, orgKey types.NamespacedName) (*orgv1.Organization, *controlv1.OrganizationMembers, error) {
