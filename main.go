@@ -19,6 +19,7 @@ import (
 	controlv1 "github.com/appuio/control-api/apis/v1"
 
 	"github.com/vshn/appuio-keycloak-adapter/controllers"
+	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 	//+kubebuilder:scaffold:imports
 	"time"
 )
@@ -46,11 +47,23 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+
+	var host string
+	var realm string
+	var username string
+	var password string
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	flag.StringVar(&host, "keycloak-url", "", "The address of the Keycloak server (E.g. `https://keycloak.example.com`).")
+	flag.StringVar(&realm, "keycloak-realm", "", "The realm to sync the groups to.")
+	flag.StringVar(&username, "keycloak-username", "", "The username to log in to the Keycloak server.")
+	flag.StringVar(&password, "keycloak-password", "", "The password to log in to the Keycloak server.")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -73,8 +86,9 @@ func main() {
 	}
 
 	if err = (&controllers.OrganizationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Keycloak: keycloak.NewClient(host, realm, username, password),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Organization")
 		os.Exit(1)
