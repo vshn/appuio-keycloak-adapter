@@ -30,6 +30,7 @@ type GoCloak interface {
 	DeleteUserFromGroup(ctx context.Context, token, realm, userID, groupID string) error
 }
 
+// Client interacts with the Keycloak API
 type Client struct {
 	Client GoCloak
 
@@ -38,6 +39,7 @@ type Client struct {
 	Password string
 }
 
+// NewClient creates a new Client
 func NewClient(host, realm, username, password string) Client {
 	return Client{
 		Client:   gocloak.NewClient(host),
@@ -47,6 +49,8 @@ func NewClient(host, realm, username, password string) Client {
 	}
 }
 
+// PutGroup creates the provided Keycloak group if it does not exist and adjusts the group members accordingly.
+// The method is idempotent.
 func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	res := Group{
 		Name: group.Name,
@@ -62,7 +66,6 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 		return res, fmt.Errorf("failed finding group: %w", err)
 	}
 	if found == nil {
-		// create group
 		id, err := c.Client.CreateGroup(ctx, token.AccessToken, c.Realm, gocloak.Group{
 			Name: gocloak.StringP(group.Name),
 		})
@@ -93,6 +96,8 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	return res, err
 }
 
+// DeleteGroup deletes the Keycloak group by name.
+// The method is idempotent and will not do anything if the group does not exits.
 func (c Client) DeleteGroup(ctx context.Context, groupName string) error {
 	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
 	if err != nil {

@@ -43,16 +43,16 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+var metricsAddr string
+var enableLeaderElection bool
+var probeAddr string
+
+var host string
+var realm string
+var username string
+var password string
+
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-
-	var host string
-	var realm string
-	var username string
-	var password string
-
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
