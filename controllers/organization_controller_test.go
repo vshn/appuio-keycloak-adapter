@@ -52,7 +52,7 @@ func Test_Reconcile(t *testing.T) {
 				WithScheme(scheme).
 				WithObjects(tc.kubeState...).
 				Build()
-			keyMock := NewMockKeycloakPutter(gomock.NewController(t))
+			keyMock := NewMockKeycloakClient(gomock.NewController(t))
 			keyMock.EXPECT().
 				PutGroup(gomock.Any(), tc.group).
 				Return(tc.group, nil).

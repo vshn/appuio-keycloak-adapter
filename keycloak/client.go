@@ -102,10 +102,10 @@ func (c Client) DeleteGroup(ctx context.Context, groupName string) error {
 	if err != nil {
 		return fmt.Errorf("failed finding group: %w", err)
 	}
-  if found == nil {
-    return nil
-  }
-  return c.Client.DeleteGroup(ctx, token.AccessToken, c.Realm, *found.ID)
+	if found == nil {
+		return nil
+	}
+	return c.Client.DeleteGroup(ctx, token.AccessToken, c.Realm, *found.ID)
 }
 
 func (c Client) getGroupByName(ctx context.Context, token *gocloak.JWT, name string) (*gocloak.Group, error) {
@@ -123,14 +123,14 @@ func (c Client) getGroupByName(ctx context.Context, token *gocloak.JWT, name str
 			group = groups[i]
 		}
 	}
-  return group, err
+	return group, err
 }
 
 func (c Client) getGroupAndMembersByName(ctx context.Context, token *gocloak.JWT, name string) (*gocloak.Group, []*gocloak.User, error) {
-  group, err := c.getGroupByName(ctx, token, name)
-  if err != nil || group == nil {
-    return group, nil, err
-  }
+	group, err := c.getGroupByName(ctx, token, name)
+	if err != nil || group == nil {
+		return group, nil, err
+	}
 
 	foundMemb, err := c.Client.GetGroupMembers(ctx, token.AccessToken, c.Realm, *group.ID, gocloak.GetGroupsParams{})
 	if err != nil {

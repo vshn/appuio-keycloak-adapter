@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -18,13 +19,16 @@ type OrganizationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Keycloak KeycloakPutter
+	Keycloak KeycloakClient
 }
 
-//go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./ZZ_mock_keycloak_putter_test.go -package controllers_test
-type KeycloakPutter interface {
+//go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./ZZ_mock_keycloak_test.go -package controllers_test
+type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
+	DeleteGroup(ctx context.Context, groupName string) error
 }
+
+var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
 
 //+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations/status,verbs=get;update;patch
@@ -37,10 +41,22 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log.V(4).Info("Getting Organization and Members..")
 	org, orgMemb, err := r.GetOrganizationAndMembers(ctx, req.NamespacedName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// TODO: Handle deletion
+	if !org.ObjectMeta.DeletionTimestamp.IsZero() {
+		err = r.Keycloak.DeleteGroup(ctx, org.Name)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		err = r.RemoveFinalizer(ctx, org, orgMemb)
+		return ctrl.Result{}, err
+	}
+	err = r.AddFinalizer(ctx, org, orgMemb)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	group := buildKeycloakGroup(org, orgMemb)
 
@@ -49,8 +65,6 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	// TODO: Add finalizer
 
 	return ctrl.Result{}, nil
 }
@@ -68,6 +82,37 @@ func (r *OrganizationReconciler) GetOrganizationAndMembers(ctx context.Context, 
 	}
 	err := r.Get(ctx, membKey, memb)
 	return org, memb, err
+}
+
+func (r *OrganizationReconciler) AddFinalizer(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers) error {
+	if !controllerutil.ContainsFinalizer(memb, orgFinalizer) {
+		controllerutil.AddFinalizer(memb, orgFinalizer)
+		if err := r.Update(ctx, memb); err != nil {
+			return err
+		}
+	}
+	if !controllerutil.ContainsFinalizer(org, orgFinalizer) {
+		controllerutil.AddFinalizer(org, orgFinalizer)
+		if err := r.Update(ctx, org); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (r *OrganizationReconciler) RemoveFinalizer(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers) error {
+	if controllerutil.ContainsFinalizer(org, orgFinalizer) {
+		controllerutil.RemoveFinalizer(org, orgFinalizer)
+		if err := r.Update(ctx, org); err != nil {
+			return err
+		}
+	}
+	if controllerutil.ContainsFinalizer(memb, orgFinalizer) {
+		controllerutil.RemoveFinalizer(memb, orgFinalizer)
+		if err := r.Update(ctx, memb); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMembers) keycloak.Group {
