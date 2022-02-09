@@ -125,7 +125,7 @@ func (r *OrganizationReconciler) removeFinalizer(ctx context.Context, org *orgv1
 }
 
 func (r *OrganizationReconciler) updateOrganizationStatus(ctx context.Context, org *orgv1.Organization, memb *controlv1.OrganizationMembers, group keycloak.Group) error {
-	userRefs := []controlv1.UserRef{}
+	userRefs := make([]controlv1.UserRef, 0, len(group.Members))
 	for _, u := range group.Members {
 		userRefs = append(userRefs, controlv1.UserRef{
 			Name: u,
@@ -136,7 +136,7 @@ func (r *OrganizationReconciler) updateOrganizationStatus(ctx context.Context, o
 }
 
 func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMembers) keycloak.Group {
-	groupMem := []string{}
+	groupMem := make([]string, 0, len(memb.Spec.UserRefs))
 
 	for _, u := range memb.Spec.UserRefs {
 		groupMem = append(groupMem, u.Name)
