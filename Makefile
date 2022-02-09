@@ -11,12 +11,6 @@ MAKEFLAGS += --no-builtin-variables
 # General variables
 include Makefile.vars.mk
 
-# Following includes do not print warnings or error if files aren't found
-# Optional Documentation module.
--include docs/antora-preview.mk docs/antora-build.mk
-# Optional kind module
--include kind/kind.mk
-
 .PHONY: help
 help: ## Show this help
 	@grep -E -h '\s##\s' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -27,7 +21,7 @@ build: build-bin build-docker ## All-in-one build
 .PHONY: build-bin
 build-bin: export CGO_ENABLED = 0
 build-bin: fmt vet ## Build binary
-	@go build -o $(BIN_FILENAME) ./...
+	@go build -o $(BIN_FILENAME) .
 
 .PHONY: build-docker
 build-docker: build-bin ## Build docker image
@@ -56,6 +50,10 @@ lint: fmt vet generate ## All-in-one linting
 .PHONY: generate
 generate: ## Generate additional code and artifacts
 	@go generate ./...
+	# Generate code
+	go run sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./..."
+	# Generate CRDs
+	go run sigs.k8s.io/controller-tools/cmd/controller-gen rbac:roleName=appuio-keycloak-adapter webhook paths="./..."
 
 .PHONY: clean
 clean: ## Cleans local build artifacts

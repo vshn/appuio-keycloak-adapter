@@ -1,0 +1,53 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: appuio-keycloak-adapter
+rules:
+- apiGroups:
+  - appuio.io
+  resources:
+  - organizationmembers
+  verbs:
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - appuio.io
+  resources:
+  - organizationmembers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - appuio.io
+  resources:
+  - organizationmembers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - organization.appuio.io
+  resources:
+  - organizations
+  verbs:
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - organization.appuio.io
+  resources:
+  - organizations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - organization.appuio.io
+  resources:
+  - organizations/status
+  verbs:
+  - get
+  - patch
+  - update

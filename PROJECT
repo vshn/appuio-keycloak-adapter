@@ -1,0 +1,12 @@
+domain: keycloak-adapter.vshn.net
+layout:
+- go.kubebuilder.io/v3
+projectName: appuio-keycloak-adapter
+repo: github.com/vshn/appuio-keycloak-adapter
+resources:
+- controller: true
+  domain: appuio.io
+  group: organization  
+  kind: Organization
+  version: v1
+version: "3"
