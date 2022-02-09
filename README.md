@@ -11,7 +11,7 @@
 [releases]: https://github.com/vshn/appuio-keycloak-adapter/releases
 [codeclimate]: https://codeclimate.com/github/vshn/appuio-keycloak-adapter
 
-The [APUUiO Control API](https://github.com/appuio/control-api) enables self-service for  [APPUiO Cloud](https://appuio.cloud).
+The [APPUiO Control API](https://github.com/appuio/control-api) enables self-service for  [APPUiO Cloud](https://appuio.cloud).
 One key part of this is to allow users to manage organizations and teams themselves.
 However the APPUiO Control API does not require a specific identity provider (IdP), but has a plugin-like architecture and relies on Kubernetes controllers to interface with an IdP.
 

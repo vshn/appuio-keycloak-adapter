@@ -122,13 +122,12 @@ func (c Client) getGroupByName(ctx context.Context, token *gocloak.JWT, name str
 		return nil, err
 	}
 
-	var group *gocloak.Group
 	for i := range groups {
 		if *groups[i].Name == name {
-			group = groups[i]
+			return groups[i], err
 		}
 	}
-	return group, err
+	return nil, nil
 }
 
 func (c Client) getGroupAndMembersByName(ctx context.Context, token *gocloak.JWT, name string) (*gocloak.Group, []*gocloak.User, error) {
