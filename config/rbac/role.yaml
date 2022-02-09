@@ -6,14 +6,34 @@ metadata:
   name: appuio-keycloak-adapter
 rules:
 - apiGroups:
+  - appuio.io
+  resources:
+  - organizationmembers
+  verbs:
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - appuio.io
+  resources:
+  - organizationmembers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - appuio.io
+  resources:
+  - organizationmembers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - organization.appuio.io
   resources:
   - organizations
   verbs:
-  - create
-  - delete
   - get
-  - list
   - patch
   - update
   - watch
