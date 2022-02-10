@@ -28,6 +28,7 @@ type OrganizationReconciler struct {
 type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 	DeleteGroup(ctx context.Context, groupName string) error
+	ListGroups(ctx context.Context) ([]keycloak.Group, error)
 }
 
 var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
