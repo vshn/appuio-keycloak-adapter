@@ -21,7 +21,6 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 		log.Error(err, "error listing Keycloak groups")
 		return err
 	}
-	log.WithValues("groups", gs).Info("got groups")
 
 	orgs := orgv1.OrganizationList{}
 	err = r.List(ctx, &orgs)
@@ -29,33 +28,38 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 		log.Error(err, "error listing organizations")
 		return err
 	}
-	log.WithValues("orgs", orgs).Info("got organizations")
 
-	orgMap := map[string]struct{}{}
-	for _, o := range orgs.Items {
-		orgMap[o.Name] = struct{}{}
+	orgMap := map[string]*orgv1.Organization{}
+	for i, o := range orgs.Items {
+		orgMap[o.Name] = &orgs.Items[i]
 	}
 
 	for _, g := range gs {
-		if _, ok := orgMap[g.Name]; !ok {
-			log.WithValues("g", g).Info("creating org")
-			org := orgv1.Organization{
+		org, ok := orgMap[g.Name]
+		if !ok {
+			log.V(1).WithValues("group", g).Info("creating organization")
+			org = &orgv1.Organization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: g.Name,
+					Annotations: map[string]string{
+						orgImportAnnot: "true",
+					},
 				},
 				Spec: orgv1.OrganizationSpec{
 					DisplayName: g.Name,
 				},
 			}
-			err := r.Create(ctx, &org)
+			err := r.Create(ctx, org)
 			if err != nil {
 				log.WithValues("org", org.Name).Error(err, "failed to create organization")
 				continue
 			}
-
+		}
+		if org.Annotations[orgImportAnnot] == "true" {
+			log.V(1).WithValues("group", g).Info("updating organization members")
 			orgMemb := controlv1.OrganizationMembers{}
 			err = r.Get(ctx, types.NamespacedName{
-				Namespace: org.Name,
+				Namespace: g.Name,
 				Name:      "members",
 			}, &orgMemb)
 			if err != nil {
@@ -69,6 +73,13 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 			err = r.Update(ctx, &orgMemb)
 			if err != nil {
 				log.WithValues("org", org.Name).Error(err, "failed to update organization members")
+				continue
+			}
+
+			delete(org.Annotations, orgImportAnnot)
+			err = r.Update(ctx, org)
+			if err != nil {
+				log.WithValues("org", org.Name).Error(err, "failed to update organization")
 				continue
 			}
 		}

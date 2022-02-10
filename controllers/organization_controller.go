@@ -51,6 +51,12 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if org.Annotations[orgImportAnnot] == "true" {
+		// This organization is being imported.
+		// Skipping to avoid race condition
+		return ctrl.Result{}, nil
+	}
+
 	if !org.ObjectMeta.DeletionTimestamp.IsZero() {
 		log.V(4).Info("Deleting Keycloak group..")
 		err = r.Keycloak.DeleteGroup(ctx, org.Name)

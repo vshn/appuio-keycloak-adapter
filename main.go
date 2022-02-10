@@ -103,7 +103,7 @@ func setupManager(kc controllers.KeycloakClient, opt ctrl.Options) (ctrl.Manager
 	if err != nil {
 		return nil, nil, err
 	}
-  or := &controllers.OrganizationReconciler{
+	or := &controllers.OrganizationReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Keycloak: kc,
