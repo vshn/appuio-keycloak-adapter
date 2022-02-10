@@ -134,10 +134,10 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 		if err != nil {
 			return res, fmt.Errorf("failed finding groupmembers for group %s: %w", *g.Name, err)
 		}
-    res[i].Members = make([]string, len(memb))
-    for j, m := range memb {
-      res[i].Members[j] = *m.Username
-    }
+		res[i].Members = make([]string, len(memb))
+		for j, m := range memb {
+			res[i].Members[j] = *m.Username
+		}
 	}
 
 	return res, nil
