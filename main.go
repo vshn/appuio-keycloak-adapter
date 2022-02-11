@@ -125,46 +125,48 @@ func setupManager(kc controllers.KeycloakClient, opt ctrl.Options) (ctrl.Manager
 	return mgr, or, err
 }
 
-func setupSync(ctx context.Context, r *controllers.OrganizationReconciler, crontab string, timout time.Duration) (*cron.Cron, error) {
+func setupSync(ctx context.Context, r *controllers.OrganizationReconciler, crontab string, timeout time.Duration) (*cron.Cron, error) {
 	syncLog := ctrl.Log.WithName("sync")
 	c := cron.New()
 	_, err := c.AddFunc(crontab, func() {
+		err := runWithBackoff(ctx,
+			func() error {
+				rCtx, cancel := context.WithTimeout(ctx, timeout)
+				rCtx = logr.NewContext(rCtx, syncLog)
+				defer cancel()
 
-		sync := func() error {
-			rCtx, cancel := context.WithTimeout(ctx, timout)
-			rCtx = logr.NewContext(rCtx, syncLog)
-			defer cancel()
-
-			return r.Sync(rCtx)
+				return r.Sync(rCtx)
+			},
+			func(err error) {
+				syncLog.Error(err, "failed to import Keycloak groups")
+			})
+		if err != nil {
+			syncLog.Info("failed to import Keycloak groups - giving up")
 		}
-
-		err := sync()
-		if err == nil {
-			return
-		}
-
-		// Run with exponential backoff
-		backoff := 500 * time.Millisecond
-		for i := 0; i < 6; i++ {
-			syncLog.Error(err, "failed to sync Keycloak groups")
-
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(backoff):
-			}
-			backoff *= 2
-
-			err := sync()
-			if err == nil {
-				return
-			}
-
-		}
-		syncLog.Info("failed to sync Keycloak groups - giving up")
 	})
 	if err != nil {
 		return nil, err
 	}
 	return c, nil
+}
+
+func runWithBackoff(ctx context.Context, run func() error, errRecorder func(err error)) error {
+	var err error
+	backoff := 500 * time.Millisecond
+	for i := 0; i < 6; i++ {
+		err = run()
+		if err == nil {
+			return nil
+		}
+
+		errRecorder(err)
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(backoff):
+		}
+		backoff *= 2
+	}
+	return err
 }
