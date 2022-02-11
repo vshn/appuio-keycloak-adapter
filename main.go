@@ -60,6 +60,9 @@ func main() {
 	username := flag.String("keycloak-username", "", "The username to log in to the Keycloak server.")
 	password := flag.String("keycloak-password", "", "The password to log in to the Keycloak server.")
 
+	crontab := flag.String("sync-schedule", "@every 5m", "A cron style schedule for the organization synchronization interval.")
+	timeout := flag.Duration("sync-timeout", 10*time.Second, "The timeout for a single synchronization run.")
+
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -82,7 +85,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	c, err := setupSync(ctx, or)
+	c, err := setupSync(ctx, or, *crontab, *timeout)
 	if err != nil {
 		setupLog.Error(err, "unable to setup sync")
 		os.Exit(1)
@@ -122,17 +125,43 @@ func setupManager(kc controllers.KeycloakClient, opt ctrl.Options) (ctrl.Manager
 	return mgr, or, err
 }
 
-func setupSync(ctx context.Context, r *controllers.OrganizationReconciler) (*cron.Cron, error) {
+func setupSync(ctx context.Context, r *controllers.OrganizationReconciler, crontab string, timout time.Duration) (*cron.Cron, error) {
 	syncLog := ctrl.Log.WithName("sync")
 	c := cron.New()
-	_, err := c.AddFunc("@every 10s", func() {
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-		ctx = logr.NewContext(ctx, syncLog)
-		err := r.Sync(ctx)
-		if err != nil {
-			syncLog.Error(err, "failed to sync Keycloak groups")
+	_, err := c.AddFunc(crontab, func() {
+
+		sync := func() error {
+			rCtx, cancel := context.WithTimeout(ctx, timout)
+			rCtx = logr.NewContext(rCtx, syncLog)
+			defer cancel()
+
+			return r.Sync(rCtx)
 		}
+
+		err := sync()
+		if err == nil {
+			return
+		}
+
+		// Run with exponential backoff
+		backoff := 500 * time.Millisecond
+		for i := 0; i < 6; i++ {
+			syncLog.Error(err, "failed to sync Keycloak groups")
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+			}
+			backoff *= 2
+
+			err := sync()
+			if err == nil {
+				return
+			}
+
+		}
+		syncLog.Info("failed to sync Keycloak groups - giving up")
 	})
 	if err != nil {
 		return nil, err
