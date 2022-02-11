@@ -47,7 +47,7 @@ The following permissions must be associated to the user:
 
 ### Organization Import
 
-Apart from mirroring changes on `Organization` resources to Keycloak, this component will also periodically import any top-level Keycloak group as `Organizations`
+In addition to mirroring changes on `Organization` resources to Keycloak, this component will also periodically import any top-level Keycloak group as `Organizations`
 It will however only create `Organization` resources and will never update them.
 This import schedule is configured through the `sync-schedule` flag.
 

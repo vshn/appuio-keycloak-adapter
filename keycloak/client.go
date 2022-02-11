@@ -114,7 +114,7 @@ func (c Client) DeleteGroup(ctx context.Context, groupName string) error {
 }
 
 // ListGroups returns all Keycloak groups in the realm.
-// This is potentially very expensive, as it needs to iterate over all groups to get its members.
+// This is potentially very expensive, as it needs to iterate over all groups to get their members.
 func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
 	if err != nil {
