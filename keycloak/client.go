@@ -19,6 +19,7 @@ type Group struct {
 // This keeps the mock at a more reasonable size
 type GoCloak interface {
 	LoginAdmin(ctx context.Context, username, password, realm string) (*gocloak.JWT, error)
+	LogoutUserSession(ctx context.Context, accessToken, realm, session string) error
 
 	CreateGroup(ctx context.Context, accessToken, realm string, group gocloak.Group) (string, error)
 	GetGroups(ctx context.Context, accessToken, realm string, params gocloak.GetGroupsParams) ([]*gocloak.Group, error)
@@ -60,6 +61,7 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	if err != nil {
 		return res, fmt.Errorf("failed binding to keycloak: %w", err)
 	}
+	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
 
 	found, foundMemb, err := c.getGroupAndMembersByName(ctx, token, group.Name)
 	if err != nil {
@@ -103,6 +105,8 @@ func (c Client) DeleteGroup(ctx context.Context, groupName string) error {
 	if err != nil {
 		return fmt.Errorf("failed binding to keycloak: %w", err)
 	}
+	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
+
 	found, err := c.getGroupByName(ctx, token, groupName)
 	if err != nil {
 		return fmt.Errorf("failed finding group: %w", err)
@@ -120,6 +124,7 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed binding to keycloak: %w", err)
 	}
+	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
 
 	groups, err := c.Client.GetGroups(ctx, token.AccessToken, c.Realm, gocloak.GetGroupsParams{})
 	if err != nil {
