@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
@@ -30,13 +32,21 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 		return err
 	}
 
+	var groupErr error
+	recordError := func(descr string, g keycloak.Group, err error) {
+		if groupErr == nil {
+			groupErr = errors.New("")
+		}
+		log.WithValues("group", g).Error(err, descr)
+		groupErr = fmt.Errorf("%w\n%s: %s\n    %s", groupErr, g.Name, descr, err.Error())
+	}
 	for _, g := range gs {
 		org, ok := orgMap[g.Name]
 		if !ok {
 			log.V(1).WithValues("group", g).Info("creating organization")
 			org, err = r.startImportOrganizationFromGroup(ctx, g)
 			if err != nil {
-				log.WithValues("group", g).Error(err, "failed to start organization import")
+				recordError("failed to start organization import", g, err)
 				continue
 			}
 		}
@@ -44,15 +54,18 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 			log.V(1).WithValues("group", g).Info("updating organization members")
 			err := r.updateOrganizationMembersFromGroup(ctx, g)
 			if err != nil {
-				log.WithValues("group", g).Error(err, "failed to update organization members")
+				recordError("failed to update organization members", g, err)
 				continue
 			}
 			err = r.finishImportOrganizationFromGroup(ctx, org)
 			if err != nil {
-				log.WithValues("group", g).Error(err, "failed to finish organization import")
+				recordError("failed to finish organization import", g, err)
 				continue
 			}
 		}
+	}
+	if groupErr != nil {
+		return fmt.Errorf("partial sync failure:\n%w", groupErr)
 	}
 	return nil
 }
