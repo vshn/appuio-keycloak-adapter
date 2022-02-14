@@ -11,8 +11,13 @@ func mockLogin(mgc *MockGoCloak, c Client) {
 	mgc.EXPECT().
 		LoginAdmin(gomock.Any(), c.Username, c.Password, c.Realm).
 		Return(&gocloak.JWT{
-			AccessToken: "token",
+			SessionState: "session",
+			AccessToken:  "token",
 		}, nil).
+		AnyTimes()
+	mgc.EXPECT().
+		LogoutUserSession(gomock.Any(), "token", c.Realm, "session").
+		Return(nil).
 		AnyTimes()
 }
 
@@ -21,7 +26,6 @@ func mockListGroups(mgc *MockGoCloak, c Client, groups []*gocloak.Group) {
 		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{}).
 		Return(groups, nil).
 		Times(1)
-
 }
 
 func mockGetGroups(mgc *MockGoCloak, c Client, groupName string, groups []*gocloak.Group) {
