@@ -31,11 +31,14 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 	}
 
 	var groupErr error
-	recordError := func(descr string, g keycloak.Group, err error) {
+	recordError := func(descr string, g keycloak.Group, err error, org *orgv1.Organization) {
 		if groupErr == nil {
 			groupErr = errors.New("")
 		}
 		logger.WithValues("group", g).Error(err, descr)
+		if org != nil {
+			r.Recorder.Event(org, "Warning", "ImportFailed", descr)
+		}
 		groupErr = fmt.Errorf("%w\n%s: %s\n    %s", groupErr, g.Name, descr, err.Error())
 	}
 	for _, g := range gs {
@@ -44,7 +47,7 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 			logger.V(1).WithValues("group", g).Info("creating organization")
 			org, err = r.startImportOrganizationFromGroup(ctx, g)
 			if err != nil {
-				recordError("failed to start organization import", g, err)
+				recordError("failed to start organization import", g, err, nil)
 				continue
 			}
 		}
@@ -52,12 +55,12 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 			logger.V(1).WithValues("group", g).Info("updating organization members")
 			err := r.updateOrganizationMembersFromGroup(ctx, g)
 			if err != nil {
-				recordError("failed to update organization members", g, err)
+				recordError("failed to import organization members", g, err, org)
 				continue
 			}
 			err = r.finishImportOrganizationFromGroup(ctx, org)
 			if err != nil {
-				recordError("failed to finish organization import", g, err)
+				recordError("failed to complete organization import", g, err, org)
 				continue
 			}
 		}
