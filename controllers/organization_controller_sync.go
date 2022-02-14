@@ -31,7 +31,6 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 	}
 
 	var groupErr error
-
 	for _, g := range gs {
 		org, err := r.syncGroup(ctx, g, orgMap[g.Name])
 		if err != nil {
