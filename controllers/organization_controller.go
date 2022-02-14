@@ -23,6 +23,9 @@ type OrganizationReconciler struct {
 	Scheme   *runtime.Scheme
 
 	Keycloak KeycloakClient
+
+	// ClusteRoles to give to group members when importing
+	SyncClusterRoles []string
 }
 
 //go:generate go run github.com/golang/mock/mockgen -destination=./ZZ_mock_eventrecorder_test.go -package controllers_test k8s.io/client-go/tools/record EventRecorder

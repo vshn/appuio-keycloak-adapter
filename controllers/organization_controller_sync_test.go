@@ -6,6 +6,7 @@ import (
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,7 @@ import (
 
 	. "github.com/vshn/appuio-keycloak-adapter/controllers"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,12 +23,28 @@ import (
 func Test_Sync_Success(t *testing.T) {
 	ctx := context.Background()
 
-	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb, &controlv1.OrganizationMembers{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "members",
-			Namespace: "bar",
+	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb,
+		// We need to add barMember manually as there is no control API in the tests creating them
+		&controlv1.OrganizationMembers{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "members",
+				Namespace: "bar",
+			},
 		},
-	}) // We need to add barMember manually as there is no control API in the tests creating them
+		// A RoleBinding created by control-api. On import we want to overwrite this
+		&rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "existing-role",
+				Namespace: "bar",
+			},
+			Subjects: []rbacv1.Subject{},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     "existing-role",
+			},
+		},
+	)
 
 	groups := []keycloak.Group{
 		{Name: "bar", Members: []string{"bar", "bar3"}},
@@ -37,9 +55,11 @@ func Test_Sync_Success(t *testing.T) {
 		Times(1)
 
 	err := (&OrganizationReconciler{
-		Client:   c,
-		Scheme:   &runtime.Scheme{},
-		Keycloak: keyMock,
+		Client:           c,
+		Recorder:         erMock,
+		Scheme:           &runtime.Scheme{},
+		Keycloak:         keyMock,
+		SyncClusterRoles: []string{"import-role", "existing-role"},
 	}).Sync(ctx)
 	require.NoError(t, err)
 
@@ -52,6 +72,33 @@ func Test_Sync_Success(t *testing.T) {
 		{Name: "bar3"},
 		{Name: "bar"},
 	}, newMemb.Spec.UserRefs)
+	rb := rbacv1.RoleBinding{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "import-role", Namespace: "bar"}, &rb))
+	assert.ElementsMatch(t, []rbacv1.Subject{
+		{
+			Kind:     rbacv1.UserKind,
+			APIGroup: rbacv1.GroupName,
+			Name:     "bar3",
+		},
+		{
+			Kind:     rbacv1.UserKind,
+			APIGroup: rbacv1.GroupName,
+			Name:     "bar",
+		},
+	}, rb.Subjects, "create new role")
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "existing-role", Namespace: "bar"}, &rb))
+	assert.ElementsMatch(t, []rbacv1.Subject{
+		{
+			Kind:     rbacv1.UserKind,
+			APIGroup: rbacv1.GroupName,
+			Name:     "bar3",
+		},
+		{
+			Kind:     rbacv1.UserKind,
+			APIGroup: rbacv1.GroupName,
+			Name:     "bar",
+		},
+	}, rb.Subjects, "update exiting role")
 
 }
 
