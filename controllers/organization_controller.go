@@ -86,6 +86,7 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if errors.As(err, &membErrs) {
 		for _, membErr := range *membErrs {
 			r.Recorder.Eventf(org, "Warning", string(membErr.Event), "Failed to update membership of user %s", membErr.Username)
+			r.Recorder.Eventf(orgMemb, "Warning", string(membErr.Event), "Failed to update membership of user %s", membErr.Username)
 			log.Error(membErr, "Failed to update membership", "user", membErr.Username)
 		}
 	} else if err != nil {

@@ -114,10 +114,10 @@ func Test_Reconcile_Member_Failure(t *testing.T) {
 
 	erMock.EXPECT().
 		Eventf(gomock.Any(), "Warning", string(keycloak.UserRemoveError), gomock.Any(), "foo").
-		Times(1)
+		Times(2)
 	erMock.EXPECT().
 		Eventf(gomock.Any(), "Warning", string(keycloak.UserAddError), gomock.Any(), "bar").
-		Times(1)
+		Times(2)
 
 	_, err := (&OrganizationReconciler{
 		Client:   c,
