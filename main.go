@@ -109,6 +109,7 @@ func setupManager(kc controllers.KeycloakClient, opt ctrl.Options) (ctrl.Manager
 	or := &controllers.OrganizationReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("keycloak-adapter"),
 		Keycloak: kc,
 	}
 	if err = or.SetupWithManager(mgr); err != nil {

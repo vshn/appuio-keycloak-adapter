@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,7 +27,7 @@ import (
 func Test_Reconcile_Success(t *testing.T) {
 	ctx := context.Background()
 
-	c, keyMock := prepareTest(t, fooOrg, fooMemb)
+	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb)
 	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
@@ -54,6 +55,42 @@ func Test_Reconcile_Success(t *testing.T) {
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
+func Test_Reconcile_Failure(t *testing.T) {
+	ctx := context.Background()
+
+	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb)
+	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
+	keyMock.EXPECT().
+		PutGroup(gomock.Any(), group).
+		Return(keycloak.Group{}, errors.New("create failed")).
+		Times(1)
+
+	erMock.EXPECT().
+		Event(gomock.Any(), "Warning", "UpdateFailed", gomock.Any()).
+		Times(1)
+
+	_, err := (&OrganizationReconciler{
+		Client:   c,
+		Scheme:   &runtime.Scheme{},
+		Recorder: erMock,
+		Keycloak: keyMock,
+	}).Reconcile(ctx, ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "foo",
+		},
+	})
+	require.Error(t, err)
+
+	newOrg := orgv1.Organization{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
+	assert.Len(t, newOrg.Finalizers, 1, "has finalizer")
+	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newOrg.Finalizers[0], "expected finalizer")
+	newMemb := controlv1.OrganizationMembers{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "members", Namespace: "foo"}, &newMemb))
+	assert.Len(t, newMemb.Finalizers, 1, "has finalizer")
+	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
+}
+
 func Test_Reconcile_Delete(t *testing.T) {
 	ctx := context.Background()
 
@@ -62,7 +99,7 @@ func Test_Reconcile_Delete(t *testing.T) {
 	org.DeletionTimestamp = &now
 	org.Finalizers = []string{"keycloak-adapter.vshn.net/finalizer"}
 
-	c, keyMock := prepareTest(t, &org, fooMemb)
+	c, keyMock, _ := prepareTest(t, &org, fooMemb)
 	keyMock.EXPECT().
 		DeleteGroup(gomock.Any(), "foo").
 		Return(nil).
@@ -83,6 +120,40 @@ func Test_Reconcile_Delete(t *testing.T) {
 	require.Error(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
 }
 
+func Test_Reconcile_Delete_Failure(t *testing.T) {
+	ctx := context.Background()
+
+	org := *fooOrg
+	now := metav1.Now()
+	org.DeletionTimestamp = &now
+	org.Finalizers = []string{"keycloak-adapter.vshn.net/finalizer"}
+
+	c, keyMock, erMock := prepareTest(t, &org, fooMemb)
+	keyMock.EXPECT().
+		DeleteGroup(gomock.Any(), "foo").
+		Return(errors.New("Failed to delete")).
+		Times(1)
+
+	erMock.EXPECT().
+		Event(gomock.Any(), "Warning", "DeletionFailed", gomock.Any()).
+		Times(1)
+
+	_, err := (&OrganizationReconciler{
+		Client:   c,
+		Recorder: erMock,
+		Scheme:   &runtime.Scheme{},
+		Keycloak: keyMock,
+	}).Reconcile(ctx, ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "foo",
+		},
+	})
+	require.Error(t, err)
+
+	newOrg := orgv1.Organization{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
+}
+
 // Reconcile should ignore organizations that are being imported
 func Test_Reconcile_Ignore(t *testing.T) {
 	ctx := context.Background()
@@ -92,7 +163,7 @@ func Test_Reconcile_Ignore(t *testing.T) {
 		"keycloak-adapter.vshn.net/importing": "true",
 	}
 
-	c, keyMock := prepareTest(t, &org, fooMemb)
+	c, keyMock, _ := prepareTest(t, &org, fooMemb)
 	_, err := (&OrganizationReconciler{
 		Client:   c,
 		Scheme:   &runtime.Scheme{},
@@ -108,7 +179,7 @@ func Test_Reconcile_Ignore(t *testing.T) {
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
 }
 
-func prepareTest(t *testing.T, initObjs ...client.Object) (client.WithWatch, *MockKeycloakClient) {
+func prepareTest(t *testing.T, initObjs ...client.Object) (client.WithWatch, *MockKeycloakClient, *MockEventRecorder) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(orgv1.AddToScheme(scheme))
@@ -119,7 +190,8 @@ func prepareTest(t *testing.T, initObjs ...client.Object) (client.WithWatch, *Mo
 		WithObjects(initObjs...).
 		Build()
 	keyMock := NewMockKeycloakClient(gomock.NewController(t))
-	return c, keyMock
+	eventMock := NewMockEventRecorder(gomock.NewController(t))
+	return c, keyMock, eventMock
 }
 
 var fooOrg = &orgv1.Organization{
