@@ -91,6 +91,56 @@ func Test_Reconcile_Failure(t *testing.T) {
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
+func Test_Reconcile_Member_Failure(t *testing.T) {
+	ctx := context.Background()
+
+	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb)
+	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
+	keyMock.EXPECT().
+		PutGroup(gomock.Any(), group).
+		Return(keycloak.Group{}, &keycloak.MembershipSyncErrors{
+			{
+				Err:      errors.New("no user 'bar' found"),
+				Username: "bar",
+				Event:    keycloak.UserAddError,
+			},
+			{
+				Err:      errors.New("permission denied"),
+				Username: "foo",
+				Event:    keycloak.UserRemoveError,
+			},
+		}).
+		Times(1)
+
+	erMock.EXPECT().
+		Eventf(gomock.Any(), "Warning", string(keycloak.UserRemoveError), gomock.Any(), "foo").
+		Times(1)
+	erMock.EXPECT().
+		Eventf(gomock.Any(), "Warning", string(keycloak.UserAddError), gomock.Any(), "bar").
+		Times(1)
+
+	_, err := (&OrganizationReconciler{
+		Client:   c,
+		Scheme:   &runtime.Scheme{},
+		Recorder: erMock,
+		Keycloak: keyMock,
+	}).Reconcile(ctx, ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "foo",
+		},
+	})
+	require.NoError(t, err)
+
+	newOrg := orgv1.Organization{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
+	assert.Len(t, newOrg.Finalizers, 1, "has finalizer")
+	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newOrg.Finalizers[0], "expected finalizer")
+	newMemb := controlv1.OrganizationMembers{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "members", Namespace: "foo"}, &newMemb))
+	assert.Len(t, newMemb.Finalizers, 1, "has finalizer")
+	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
+}
+
 func Test_Reconcile_Delete(t *testing.T) {
 	ctx := context.Background()
 

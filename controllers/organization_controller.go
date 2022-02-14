@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
@@ -81,7 +82,13 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.V(4).Info("Reconciling Keycloak group..")
 	group, err = r.Keycloak.PutGroup(ctx, group)
-	if err != nil {
+	var membErrs *keycloak.MembershipSyncErrors
+	if errors.As(err, &membErrs) {
+		for _, membErr := range *membErrs {
+			r.Recorder.Eventf(org, "Warning", string(membErr.Event), "Failed to update membership of user %s", membErr.Username)
+			log.Error(membErr, "Failed to update membership", "user", membErr.Username)
+		}
+	} else if err != nil {
 		r.Recorder.Event(org, "Warning", "UpdateFailed", "Failed to update Keycloak Group")
 		return ctrl.Result{}, err
 	}
