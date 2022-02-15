@@ -31,44 +31,49 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 	}
 
 	var groupErr error
-	recordError := func(descr string, g keycloak.Group, err error, org *orgv1.Organization) {
-		if groupErr == nil {
-			groupErr = errors.New("")
-		}
-		logger.WithValues("group", g).Error(err, descr)
-		if org != nil {
-			r.Recorder.Event(org, "Warning", "ImportFailed", descr)
-		}
-		groupErr = fmt.Errorf("%w\n%s: %s\n    %s", groupErr, g.Name, descr, err.Error())
-	}
+
 	for _, g := range gs {
-		org, ok := orgMap[g.Name]
-		if !ok {
-			logger.V(1).WithValues("group", g).Info("creating organization")
-			org, err = r.startImportOrganizationFromGroup(ctx, g)
-			if err != nil {
-				recordError("failed to start organization import", g, err, nil)
-				continue
+		org, err := r.syncGroup(ctx, g, orgMap[g.Name])
+		if err != nil {
+			if groupErr == nil {
+				groupErr = errors.New("")
 			}
-		}
-		if org.Annotations[orgImportAnnot] == "true" {
-			logger.V(1).WithValues("group", g).Info("updating organization members")
-			err := r.updateOrganizationMembersFromGroup(ctx, g)
-			if err != nil {
-				recordError("failed to import organization members", g, err, org)
-				continue
+			logger.WithValues("group", g).Error(err, "import of group failed")
+			if org != nil {
+				r.Recorder.Event(org, "Warning", "ImportFailed", err.Error())
 			}
-			err = r.finishImportOrganizationFromGroup(ctx, org)
-			if err != nil {
-				recordError("failed to complete organization import", g, err, org)
-				continue
-			}
+			groupErr = fmt.Errorf("%w\n%s: %s", groupErr, g.Name, err.Error())
 		}
 	}
 	if groupErr != nil {
 		return fmt.Errorf("partial sync failure:\n%w", groupErr)
 	}
 	return nil
+}
+
+func (r *OrganizationReconciler) syncGroup(ctx context.Context, g keycloak.Group, org *orgv1.Organization) (*orgv1.Organization, error) {
+	logger := log.FromContext(ctx)
+	var err error
+
+	if org == nil {
+		logger.V(1).WithValues("group", g).Info("creating organization")
+		org, err = r.startImportOrganizationFromGroup(ctx, g)
+		if err != nil {
+			return org, err
+		}
+	}
+	if org.Annotations[orgImportAnnot] == "true" {
+		logger.V(1).WithValues("group", g).Info("updating organization members")
+		err := r.updateOrganizationMembersFromGroup(ctx, g)
+		if err != nil {
+			return org, err
+		}
+		err = r.finishImportOrganizationFromGroup(ctx, org)
+		if err != nil {
+			return org, err
+		}
+	}
+	return org, err
 }
 
 func (r *OrganizationReconciler) fetchOrganiztionMap(ctx context.Context) (map[string]*orgv1.Organization, error) {

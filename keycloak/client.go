@@ -13,6 +13,7 @@ type Group struct {
 	Members []string
 }
 
+// MembershipSyncError is a custom error indicating the failure of syncing the membership of a single user.
 type MembershipSyncError struct {
 	Err      error
 	Username string
@@ -23,11 +24,17 @@ func (err MembershipSyncError) Error() string {
 	return err.Err.Error()
 }
 
+// ErrEvent is the reason this error was thrown.
+// It should be short and unique, imagine people writing switch statements to handle them.
 type ErrEvent string
 
+// UserAddError indicates that the client was unable to add the user to the group
 var UserAddError ErrEvent = "AddUserFailed"
+
+// UserRemoveError indicates that the client was unable to remove the user from the group
 var UserRemoveError ErrEvent = "RemoveUserFailed"
 
+// MembershipSyncErrors is a cusom error that can be used to indicate that the client failed to sync one or more memberships.
 type MembershipSyncErrors []MembershipSyncError
 
 func (errs *MembershipSyncErrors) Error() string {
