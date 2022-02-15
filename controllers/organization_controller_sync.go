@@ -18,18 +18,16 @@ var orgImportAnnot = "keycloak-adapter.vshn.net/importing"
 
 // Sync lists all Keycloak groups in the realm and creates corresponding Organizations if they do not exist
 func (r *OrganizationReconciler) Sync(ctx context.Context) error {
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	gs, err := r.Keycloak.ListGroups(ctx)
 	if err != nil {
-		log.Error(err, "error listing Keycloak groups")
-		return err
+		return fmt.Errorf("cannot list Keycloak groups: %w", err)
 	}
 
-	orgMap, err := r.getOrganiztionMap(ctx)
+	orgMap, err := r.fetchOrganiztionMap(ctx)
 	if err != nil {
-		log.Error(err, "error listing Organizations")
-		return err
+		return fmt.Errorf("cannot list Organizations: %w", err)
 	}
 
 	var groupErr error
@@ -37,13 +35,13 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 		if groupErr == nil {
 			groupErr = errors.New("")
 		}
-		log.WithValues("group", g).Error(err, descr)
+		logger.WithValues("group", g).Error(err, descr)
 		groupErr = fmt.Errorf("%w\n%s: %s\n    %s", groupErr, g.Name, descr, err.Error())
 	}
 	for _, g := range gs {
 		org, ok := orgMap[g.Name]
 		if !ok {
-			log.V(1).WithValues("group", g).Info("creating organization")
+			logger.V(1).WithValues("group", g).Info("creating organization")
 			org, err = r.startImportOrganizationFromGroup(ctx, g)
 			if err != nil {
 				recordError("failed to start organization import", g, err)
@@ -51,7 +49,7 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 			}
 		}
 		if org.Annotations[orgImportAnnot] == "true" {
-			log.V(1).WithValues("group", g).Info("updating organization members")
+			logger.V(1).WithValues("group", g).Info("updating organization members")
 			err := r.updateOrganizationMembersFromGroup(ctx, g)
 			if err != nil {
 				recordError("failed to update organization members", g, err)
@@ -70,7 +68,7 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (r *OrganizationReconciler) getOrganiztionMap(ctx context.Context) (map[string]*orgv1.Organization, error) {
+func (r *OrganizationReconciler) fetchOrganiztionMap(ctx context.Context) (map[string]*orgv1.Organization, error) {
 	orgs := orgv1.OrganizationList{}
 	err := r.List(ctx, &orgs)
 	if err != nil {
