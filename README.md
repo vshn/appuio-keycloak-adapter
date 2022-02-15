@@ -34,6 +34,8 @@ Usage of ./appuio-keycloak-adapter:
       A cron style schedule for the organization synchronization interval. (default "@every 5m")
   -sync-timeout duration
       The timeout for a single synchronization run. (default 10s)
+  -sync-roles string
+    	A comma separated list of cluster roles to bind to users when importing a new organization.
 ```
 
 ### Authenticating to Keycloak
@@ -49,7 +51,7 @@ The following permissions must be associated to the user:
 
 In addition to mirroring changes on `Organization` resources to Keycloak, this component will also periodically import any top-level Keycloak group as `Organizations`
 It will however only create `Organization` resources and will never update them.
-This import schedule is configured through the `sync-schedule` flag.
+This import schedule is configured through the `sync-schedule` flag and the `ClusterRoles` specified in the `sync-roles` flag will be bound to every member of the Keycloak group at the time of the initial import.
 
 ## Development
 
