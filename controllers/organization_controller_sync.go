@@ -9,6 +9,8 @@ import (
 	controlv1 "github.com/appuio/control-api/apis/v1"
 	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -31,7 +33,6 @@ func (r *OrganizationReconciler) Sync(ctx context.Context) error {
 	}
 
 	var groupErr error
-
 	for _, g := range gs {
 		org, err := r.syncGroup(ctx, g, orgMap[g.Name])
 		if err != nil {
@@ -65,6 +66,10 @@ func (r *OrganizationReconciler) syncGroup(ctx context.Context, g keycloak.Group
 	if org.Annotations[orgImportAnnot] == "true" {
 		logger.V(1).WithValues("group", g).Info("updating organization members")
 		err := r.updateOrganizationMembersFromGroup(ctx, g)
+		if err != nil {
+			return org, err
+		}
+		err = r.setRolebindingsFromGroup(ctx, g)
 		if err != nil {
 			return org, err
 		}
@@ -126,4 +131,50 @@ func (r *OrganizationReconciler) updateOrganizationMembersFromGroup(ctx context.
 		orgMemb.Spec.UserRefs[i] = controlv1.UserRef{Name: m}
 	}
 	return r.Update(ctx, &orgMemb)
+}
+
+func (r *OrganizationReconciler) setRolebindingsFromGroup(ctx context.Context, group keycloak.Group) error {
+	subjects := []rbacv1.Subject{}
+	for _, m := range group.Members {
+		subjects = append(subjects, rbacv1.Subject{
+			Kind:     rbacv1.UserKind,
+			APIGroup: rbacv1.GroupName,
+			Name:     m,
+		})
+	}
+
+	for _, rbName := range r.SyncClusterRoles {
+
+		rb := rbacv1.RoleBinding{}
+		err := r.Get(ctx, types.NamespacedName{Namespace: group.Name, Name: rbName}, &rb)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+		if apierrors.IsNotFound(err) {
+			rb := rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: group.Name,
+					Name:      rbName,
+				},
+				Subjects: subjects,
+				RoleRef: rbacv1.RoleRef{
+					Kind:     "ClusterRole",
+					APIGroup: rbacv1.GroupName,
+					Name:     rbName,
+				},
+			}
+
+			err = r.Create(ctx, &rb)
+			if err != nil {
+				return err
+			}
+		} else {
+			rb.Subjects = subjects
+			err = r.Update(ctx, &rb)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

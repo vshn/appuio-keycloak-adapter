@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -62,6 +63,7 @@ func main() {
 
 	crontab := flag.String("sync-schedule", "@every 5m", "A cron style schedule for the organization synchronization interval.")
 	timeout := flag.Duration("sync-timeout", 10*time.Second, "The timeout for a single synchronization run.")
+	syncRoles := flag.String("sync-roles", "", "A comma separated list of cluster roles to bind to users when importing a new organization.")
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
@@ -72,6 +74,7 @@ func main() {
 
 	mgr, or, err := setupManager(
 		keycloak.NewClient(*host, *realm, *username, *password),
+		strings.Split(*syncRoles, ","),
 		ctrl.Options{
 			Scheme:                 scheme,
 			MetricsBindAddress:     *metricsAddr,
@@ -101,16 +104,17 @@ func main() {
 	<-c.Stop().Done()
 }
 
-func setupManager(kc controllers.KeycloakClient, opt ctrl.Options) (ctrl.Manager, *controllers.OrganizationReconciler, error) {
+func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Options) (ctrl.Manager, *controllers.OrganizationReconciler, error) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), opt)
 	if err != nil {
 		return nil, nil, err
 	}
 	or := &controllers.OrganizationReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("keycloak-adapter"),
-		Keycloak: kc,
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		Recorder:         mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak:         kc,
+		SyncClusterRoles: syncRoles,
 	}
 	if err = or.SetupWithManager(mgr); err != nil {
 		return nil, nil, err
