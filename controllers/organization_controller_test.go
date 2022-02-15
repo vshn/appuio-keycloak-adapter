@@ -47,11 +47,11 @@ func Test_Reconcile_Success(t *testing.T) {
 
 	newOrg := orgv1.Organization{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
-	assert.Len(t, newOrg.Finalizers, 1, "has finalizer")
+	require.Len(t, newOrg.Finalizers, 1, "has finalizer")
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newOrg.Finalizers[0], "expected finalizer")
 	newMemb := controlv1.OrganizationMembers{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "members", Namespace: "foo"}, &newMemb))
-	assert.Len(t, newMemb.Finalizers, 1, "has finalizer")
+	require.Len(t, newMemb.Finalizers, 1, "has finalizer")
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
@@ -83,11 +83,11 @@ func Test_Reconcile_Failure(t *testing.T) {
 
 	newOrg := orgv1.Organization{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
-	assert.Len(t, newOrg.Finalizers, 1, "has finalizer")
+	require.Len(t, newOrg.Finalizers, 1, "has finalizer")
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newOrg.Finalizers[0], "expected finalizer")
 	newMemb := controlv1.OrganizationMembers{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "members", Namespace: "foo"}, &newMemb))
-	assert.Len(t, newMemb.Finalizers, 1, "has finalizer")
+	require.Len(t, newMemb.Finalizers, 1, "has finalizer")
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
@@ -133,11 +133,11 @@ func Test_Reconcile_Member_Failure(t *testing.T) {
 
 	newOrg := orgv1.Organization{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
-	assert.Len(t, newOrg.Finalizers, 1, "has finalizer")
+	require.Len(t, newOrg.Finalizers, 1, "has finalizer")
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newOrg.Finalizers[0], "expected finalizer")
 	newMemb := controlv1.OrganizationMembers{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "members", Namespace: "foo"}, &newMemb))
-	assert.Len(t, newMemb.Finalizers, 1, "has finalizer")
+	require.Len(t, newMemb.Finalizers, 1, "has finalizer")
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
