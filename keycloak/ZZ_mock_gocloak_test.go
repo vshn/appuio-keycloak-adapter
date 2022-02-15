@@ -151,3 +151,17 @@ func (mr *MockGoCloakMockRecorder) LoginAdmin(ctx, username, password, realm int
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoginAdmin", reflect.TypeOf((*MockGoCloak)(nil).LoginAdmin), ctx, username, password, realm)
 }
+
+// LogoutUserSession mocks base method.
+func (m *MockGoCloak) LogoutUserSession(ctx context.Context, accessToken, realm, session string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LogoutUserSession", ctx, accessToken, realm, session)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// LogoutUserSession indicates an expected call of LogoutUserSession.
+func (mr *MockGoCloakMockRecorder) LogoutUserSession(ctx, accessToken, realm, session interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogoutUserSession", reflect.TypeOf((*MockGoCloak)(nil).LogoutUserSession), ctx, accessToken, realm, session)
+}
