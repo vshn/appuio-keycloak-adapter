@@ -49,6 +49,21 @@ func (mr *MockKeycloakClientMockRecorder) DeleteGroup(ctx, groupName interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteGroup", reflect.TypeOf((*MockKeycloakClient)(nil).DeleteGroup), ctx, groupName)
 }
 
+// ListGroups mocks base method.
+func (m *MockKeycloakClient) ListGroups(ctx context.Context) ([]keycloak.Group, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListGroups", ctx)
+	ret0, _ := ret[0].([]keycloak.Group)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListGroups indicates an expected call of ListGroups.
+func (mr *MockKeycloakClientMockRecorder) ListGroups(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListGroups", reflect.TypeOf((*MockKeycloakClient)(nil).ListGroups), ctx)
+}
+
 // PutGroup mocks base method.
 func (m *MockKeycloakClient) PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error) {
 	m.ctrl.T.Helper()

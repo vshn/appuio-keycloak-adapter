@@ -29,6 +29,11 @@ Usage of ./appuio-keycloak-adapter:
       The address of the Keycloak server (E.g. https://keycloak.example.com).
   -keycloak-username string
       The username to log in to the Keycloak server.
+
+  -sync-schedule string
+      A cron style schedule for the organization synchronization interval. (default "@every 5m")
+  -sync-timeout duration
+      The timeout for a single synchronization run. (default 10s)
 ```
 
 ### Authenticating to Keycloak
@@ -38,6 +43,13 @@ The following permissions must be associated to the user:
 
 * Password must be set (Temporary option unselected) on the _Credentials_ tab
 * On the _Role Mappings_ tab, select _realm-management_ next to the _Client Roles_ dropdown and then select **query-users**, **manage-users**, and **query-groups**.
+
+
+### Organization Import
+
+In addition to mirroring changes on `Organization` resources to Keycloak, this component will also periodically import any top-level Keycloak group as `Organizations`
+It will however only create `Organization` resources and will never update them.
+This import schedule is configured through the `sync-schedule` flag.
 
 ## Development
 

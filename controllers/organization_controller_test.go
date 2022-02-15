@@ -83,6 +83,31 @@ func Test_Reconcile_Delete(t *testing.T) {
 	require.Error(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
 }
 
+// Reconcile should ignore organizations that are being imported
+func Test_Reconcile_Ignore(t *testing.T) {
+	ctx := context.Background()
+
+	org := *fooOrg
+	org.Annotations = map[string]string{
+		"keycloak-adapter.vshn.net/importing": "true",
+	}
+
+	c, keyMock := prepareTest(t, &org, fooMemb)
+	_, err := (&OrganizationReconciler{
+		Client:   c,
+		Scheme:   &runtime.Scheme{},
+		Keycloak: keyMock,
+	}).Reconcile(ctx, ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "foo",
+		},
+	})
+	require.NoError(t, err)
+
+	newOrg := orgv1.Organization{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
+}
+
 func prepareTest(t *testing.T, initObjs ...client.Object) (client.WithWatch, *MockKeycloakClient) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

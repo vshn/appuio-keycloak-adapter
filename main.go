@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -15,11 +16,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/go-logr/logr"
+	"github.com/robfig/cron/v3"
+
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
 
 	"github.com/vshn/appuio-keycloak-adapter/controllers"
 	"github.com/vshn/appuio-keycloak-adapter/keycloak"
+
 	//+kubebuilder:scaffold:imports
 	"time"
 )
@@ -43,70 +48,125 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-var metricsAddr string
-var enableLeaderElection bool
-var probeAddr string
-
-var host string
-var realm string
-var username string
-var password string
-
 func main() {
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	metricsAddr := flag.String("metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	enableLeaderElection := flag.Bool("leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	probeAddr := flag.String("health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	flag.StringVar(&host, "keycloak-url", "", "The address of the Keycloak server (E.g. `https://keycloak.example.com`).")
-	flag.StringVar(&realm, "keycloak-realm", "", "The realm to sync the groups to.")
-	flag.StringVar(&username, "keycloak-username", "", "The username to log in to the Keycloak server.")
-	flag.StringVar(&password, "keycloak-password", "", "The password to log in to the Keycloak server.")
+	host := flag.String("keycloak-url", "", "The address of the Keycloak server (E.g. `https://keycloak.example.com`).")
+	realm := flag.String("keycloak-realm", "", "The realm to sync the groups to.")
+	username := flag.String("keycloak-username", "", "The username to log in to the Keycloak server.")
+	password := flag.String("keycloak-password", "", "The password to log in to the Keycloak server.")
 
-	opts := zap.Options{
-		Development: true,
-	}
+	crontab := flag.String("sync-schedule", "@every 5m", "A cron style schedule for the organization synchronization interval.")
+	timeout := flag.Duration("sync-timeout", 10*time.Second, "The timeout for a single synchronization run.")
+
+	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctx := ctrl.SetupSignalHandler()
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "fe04906e.my.domain",
-	})
+	mgr, or, err := setupManager(
+		keycloak.NewClient(*host, *realm, *username, *password),
+		ctrl.Options{
+			Scheme:                 scheme,
+			MetricsBindAddress:     *metricsAddr,
+			Port:                   9443,
+			HealthProbeBindAddress: *probeAddr,
+			LeaderElection:         *enableLeaderElection,
+			LeaderElectionID:       "fe04906e.keycloak-adapter.vshn.net",
+		})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to setup manager")
 		os.Exit(1)
 	}
 
-	if err = (&controllers.OrganizationReconciler{
+	c, err := setupSync(ctx, or, *crontab, *timeout)
+	if err != nil {
+		setupLog.Error(err, "unable to setup sync")
+		os.Exit(1)
+	}
+	c.Start()
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctx); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+	setupLog.Info("stopping..")
+	<-c.Stop().Done()
+}
+
+func setupManager(kc controllers.KeycloakClient, opt ctrl.Options) (ctrl.Manager, *controllers.OrganizationReconciler, error) {
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), opt)
+	if err != nil {
+		return nil, nil, err
+	}
+	or := &controllers.OrganizationReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Keycloak: keycloak.NewClient(host, realm, username, password),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Organization")
-		os.Exit(1)
+		Keycloak: kc,
+	}
+	if err = or.SetupWithManager(mgr); err != nil {
+		return nil, nil, err
 	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		return nil, nil, err
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		return nil, nil, err
 	}
+	return mgr, or, err
+}
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+func setupSync(ctx context.Context, r *controllers.OrganizationReconciler, crontab string, timeout time.Duration) (*cron.Cron, error) {
+	syncLog := ctrl.Log.WithName("sync")
+	c := cron.New()
+	_, err := c.AddFunc(crontab, func() {
+		err := runWithBackoff(ctx,
+			func() error {
+				rCtx, cancel := context.WithTimeout(ctx, timeout)
+				rCtx = logr.NewContext(rCtx, syncLog)
+				defer cancel()
+
+				return r.Sync(rCtx)
+			},
+			func(err error) {
+				syncLog.Error(err, "failed to import Keycloak groups")
+			})
+		if err != nil {
+			syncLog.Info("failed to import Keycloak groups - giving up")
+		}
+	})
+	if err != nil {
+		return nil, err
 	}
+	return c, nil
+}
+
+func runWithBackoff(ctx context.Context, run func() error, errRecorder func(err error)) error {
+	var err error
+	backoff := 500 * time.Millisecond
+	for i := 0; i < 6; i++ {
+		err = run()
+		if err == nil {
+			return nil
+		}
+
+		errRecorder(err)
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(backoff):
+		}
+		backoff *= 2
+	}
+	return err
 }

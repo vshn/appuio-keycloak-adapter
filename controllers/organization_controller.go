@@ -28,6 +28,7 @@ type OrganizationReconciler struct {
 type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 	DeleteGroup(ctx context.Context, groupName string) error
+	ListGroups(ctx context.Context) ([]keycloak.Group, error)
 }
 
 var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
@@ -48,6 +49,12 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	org, orgMemb, err := r.getOrganizationAndMembers(ctx, req.NamespacedName)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if org.Annotations[orgImportAnnot] == "true" {
+		// This organization is being imported.
+		// Skipping to avoid race condition
+		return ctrl.Result{}, nil
 	}
 
 	if !org.ObjectMeta.DeletionTimestamp.IsZero() {

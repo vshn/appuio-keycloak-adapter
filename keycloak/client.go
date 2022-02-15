@@ -113,6 +113,36 @@ func (c Client) DeleteGroup(ctx context.Context, groupName string) error {
 	return c.Client.DeleteGroup(ctx, token.AccessToken, c.Realm, *found.ID)
 }
 
+// ListGroups returns all Keycloak groups in the realm.
+// This is potentially very expensive, as it needs to iterate over all groups to get their members.
+func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
+	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
+	if err != nil {
+		return nil, fmt.Errorf("failed binding to keycloak: %w", err)
+	}
+
+	groups, err := c.Client.GetGroups(ctx, token.AccessToken, c.Realm, gocloak.GetGroupsParams{})
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]Group, len(groups))
+
+	for i, g := range groups {
+		res[i].Name = *g.Name
+		memb, err := c.Client.GetGroupMembers(ctx, token.AccessToken, c.Realm, *g.ID, gocloak.GetGroupsParams{})
+		if err != nil {
+			return res, fmt.Errorf("failed finding groupmembers for group %s: %w", *g.Name, err)
+		}
+		res[i].Members = make([]string, len(memb))
+		for j, m := range memb {
+			res[i].Members[j] = *m.Username
+		}
+	}
+
+	return res, nil
+}
+
 func (c Client) getGroupByName(ctx context.Context, token *gocloak.JWT, name string) (*gocloak.Group, error) {
 	// This may return more than one 1 result
 	groups, err := c.Client.GetGroups(ctx, token.AccessToken, c.Realm, gocloak.GetGroupsParams{

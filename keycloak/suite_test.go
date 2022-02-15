@@ -16,6 +16,14 @@ func mockLogin(mgc *MockGoCloak, c Client) {
 		AnyTimes()
 }
 
+func mockListGroups(mgc *MockGoCloak, c Client, groups []*gocloak.Group) {
+	mgc.EXPECT().
+		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{}).
+		Return(groups, nil).
+		Times(1)
+
+}
+
 func mockGetGroups(mgc *MockGoCloak, c Client, groupName string, groups []*gocloak.Group) {
 	mgc.EXPECT().
 		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{
@@ -42,7 +50,7 @@ func mockDeleteGroup(mgc *MockGoCloak, c Client, groupID string) {
 
 func mockGetGroupMembers(mgc *MockGoCloak, c Client, groupID string, users []*gocloak.User) {
 	mgc.EXPECT().
-		GetGroupMembers(gomock.Any(), "token", c.Realm, "foo-id", gomock.Any()).
+		GetGroupMembers(gomock.Any(), "token", c.Realm, groupID, gomock.Any()).
 		Return(users, nil).
 		Times(1)
 }
