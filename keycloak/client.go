@@ -13,6 +13,38 @@ type Group struct {
 	Members []string
 }
 
+// MembershipSyncError is a custom error indicating the failure of syncing the membership of a single user.
+type MembershipSyncError struct {
+	Err      error
+	Username string
+	Event    ErrEvent
+}
+
+func (err MembershipSyncError) Error() string {
+	return err.Err.Error()
+}
+
+// ErrEvent is the reason this error was thrown.
+// It should be short and unique, imagine people writing switch statements to handle them.
+type ErrEvent string
+
+// UserAddError indicates that the client was unable to add the user to the group
+var UserAddError ErrEvent = "AddUserFailed"
+
+// UserRemoveError indicates that the client was unable to remove the user from the group
+var UserRemoveError ErrEvent = "RemoveUserFailed"
+
+// MembershipSyncErrors is a cusom error that can be used to indicate that the client failed to sync one or more memberships.
+type MembershipSyncErrors []MembershipSyncError
+
+func (errs *MembershipSyncErrors) Error() string {
+	errMsg := ""
+	for _, err := range *errs {
+		errMsg = fmt.Sprintf("%s\n", err.Error())
+	}
+	return errMsg
+}
+
 //go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./ZZ_mock_gocloak_test.go -package keycloak_test
 
 // GoCloak is the subset of methods of the humongous gocloak.GoCloak interface that we actually need.
@@ -80,12 +112,19 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 		}
 	}
 
+	membErr := MembershipSyncErrors{}
+
 	for _, fm := range foundMemb {
 		if !contains(group.Members, *fm.Username) {
 			// user is not in group remove it
 			err := c.Client.DeleteUserFromGroup(ctx, token.AccessToken, c.Realm, *fm.ID, *found.ID)
 			if err != nil {
-				return res, err
+				membErr = append(membErr, MembershipSyncError{
+					Err:      err,
+					Username: *fm.Username,
+					Event:    UserRemoveError,
+				})
+				continue
 			}
 		} else {
 			res.Members = append(res.Members, *fm.Username)
@@ -93,9 +132,16 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	}
 	newMemb := diff(group.Members, res.Members)
 
-	addedMemb, err := c.addUsersToGroup(ctx, token, *found.ID, newMemb)
+	addedMemb, addMembErr := c.addUsersToGroup(ctx, token, *found.ID, newMemb)
 	res.Members = append(res.Members, addedMemb...)
-	return res, err
+	if addMembErr != nil {
+		membErr = append(membErr, *addMembErr...)
+	}
+
+	if len(membErr) > 0 {
+		return res, &membErr
+	}
+	return res, nil
 }
 
 // DeleteGroup deletes the Keycloak group by name.
@@ -179,18 +225,26 @@ func (c Client) getGroupAndMembersByName(ctx context.Context, token *gocloak.JWT
 
 }
 
-func (c Client) addUsersToGroup(ctx context.Context, token *gocloak.JWT, groupID string, usernames []string) ([]string, error) {
+func (c Client) addUsersToGroup(ctx context.Context, token *gocloak.JWT, groupID string, usernames []string) ([]string, *MembershipSyncErrors) {
 	res := []string{}
+	errs := MembershipSyncErrors{}
 	for _, uname := range usernames {
 		usr, err := c.getUserByName(ctx, token, uname)
-		if err != nil || usr == nil {
-			return nil, err
+		if err != nil {
+			errs = append(errs, MembershipSyncError{
+				Err:      err,
+				Username: uname,
+				Event:    UserAddError,
+			})
+			continue
 		}
 		err = c.Client.AddUserToGroup(ctx, token.AccessToken, c.Realm, *usr.ID, groupID)
 		if err != nil {
-			return nil, err
 		}
 		res = append(res, uname)
+	}
+	if len(errs) > 0 {
+		return res, &errs
 	}
 	return res, nil
 }
@@ -208,7 +262,7 @@ func (c Client) getUserByName(ctx context.Context, token *gocloak.JWT, name stri
 			return users[i], nil
 		}
 	}
-	return nil, nil
+	return nil, fmt.Errorf("no user with username %s found", name)
 }
 
 func contains(s []string, a string) bool {

@@ -21,7 +21,7 @@ import (
 func Test_Sync_Success(t *testing.T) {
 	ctx := context.Background()
 
-	c, keyMock := prepareTest(t, fooOrg, fooMemb, &controlv1.OrganizationMembers{
+	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb, &controlv1.OrganizationMembers{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "members",
 			Namespace: "bar",
@@ -58,7 +58,7 @@ func Test_Sync_Success(t *testing.T) {
 func Test_Sync_Fail_Update(t *testing.T) {
 	ctx := context.Background()
 
-	c, keyMock := prepareTest(t, fooOrg, &controlv1.OrganizationMembers{
+	c, keyMock, erMock := prepareTest(t, fooOrg, &controlv1.OrganizationMembers{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "members",
 			Namespace: "bar",
@@ -74,9 +74,13 @@ func Test_Sync_Fail_Update(t *testing.T) {
 		ListGroups(gomock.Any()).
 		Return(groups, nil).
 		Times(1)
+	erMock.EXPECT().
+		Event(gomock.Any(), "Warning", "ImportFailed", gomock.Any()).
+		Times(1)
 
 	err := (&OrganizationReconciler{
 		Client:   c,
+		Recorder: erMock,
 		Scheme:   &runtime.Scheme{},
 		Keycloak: keyMock,
 	}).Sync(ctx)
@@ -101,7 +105,7 @@ func Test_Sync_Fail_Update(t *testing.T) {
 func Test_Sync_Skip_Existing(t *testing.T) {
 	ctx := context.Background()
 
-	c, keyMock := prepareTest(t, fooOrg, fooMemb) // We need to add barMember manually as there is no control API in the tests creating them
+	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb) // We need to add barMember manually as there is no control API in the tests creating them
 
 	groups := []keycloak.Group{
 		{Name: "foo", Members: []string{"foo", "foo2"}},

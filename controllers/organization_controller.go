@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
 	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -17,10 +19,13 @@ import (
 // OrganizationReconciler reconciles a Organization object
 type OrganizationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Recorder record.EventRecorder
+	Scheme   *runtime.Scheme
 
 	Keycloak KeycloakClient
 }
+
+//go:generate go run github.com/golang/mock/mockgen -destination=./ZZ_mock_eventrecorder_test.go -package controllers_test k8s.io/client-go/tools/record EventRecorder
 
 //go:generate go run github.com/golang/mock/mockgen -source=$GOFILE -destination=./ZZ_mock_keycloak_test.go -package controllers_test
 
@@ -61,6 +66,7 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.V(4).Info("Deleting Keycloak group..")
 		err = r.Keycloak.DeleteGroup(ctx, org.Name)
 		if err != nil {
+			r.Recorder.Event(org, "Warning", "DeletionFailed", "Failed to delete Keycloak Group")
 			return ctrl.Result{}, err
 		}
 
@@ -76,7 +82,15 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.V(4).Info("Reconciling Keycloak group..")
 	group, err = r.Keycloak.PutGroup(ctx, group)
-	if err != nil {
+	var membErrs *keycloak.MembershipSyncErrors
+	if errors.As(err, &membErrs) {
+		for _, membErr := range *membErrs {
+			r.Recorder.Eventf(org, "Warning", string(membErr.Event), "Failed to update membership of user %s", membErr.Username)
+			r.Recorder.Eventf(orgMemb, "Warning", string(membErr.Event), "Failed to update membership of user %s", membErr.Username)
+			log.Error(membErr, "Failed to update membership", "user", membErr.Username)
+		}
+	} else if err != nil {
+		r.Recorder.Event(org, "Warning", "UpdateFailed", "Failed to update Keycloak Group")
 		return ctrl.Result{}, err
 	}
 
