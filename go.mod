@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Nerzal/gocloak/v10 v10.0.1
-	github.com/appuio/control-api v0.4.0
+	github.com/appuio/control-api v0.5.0
 	github.com/golang/mock v1.6.0
 	github.com/stretchr/testify v1.7.0
 	k8s.io/apimachinery v0.23.3
@@ -38,7 +38,7 @@ require (
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
-	github.com/go-logr/logr v1.2.2 // indirect
+	github.com/go-logr/logr v1.2.2
 	github.com/go-logr/zapr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
@@ -101,7 +101,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/api v0.23.3 // indirect
+	k8s.io/api v0.23.3
 	k8s.io/apiextensions-apiserver v0.23.0 // indirect
 	k8s.io/apiserver v0.23.2 // indirect
 	k8s.io/component-base v0.23.2 // indirect

@@ -36,17 +36,22 @@ func (m *MockKeycloakClient) EXPECT() *MockKeycloakClientMockRecorder {
 }
 
 // DeleteGroup mocks base method.
-func (m *MockKeycloakClient) DeleteGroup(ctx context.Context, groupName string) error {
+func (m *MockKeycloakClient) DeleteGroup(ctx context.Context, path ...string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteGroup", ctx, groupName)
+	varargs := []interface{}{ctx}
+	for _, a := range path {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteGroup", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteGroup indicates an expected call of DeleteGroup.
-func (mr *MockKeycloakClientMockRecorder) DeleteGroup(ctx, groupName interface{}) *gomock.Call {
+func (mr *MockKeycloakClientMockRecorder) DeleteGroup(ctx interface{}, path ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteGroup", reflect.TypeOf((*MockKeycloakClient)(nil).DeleteGroup), ctx, groupName)
+	varargs := append([]interface{}{ctx}, path...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteGroup", reflect.TypeOf((*MockKeycloakClient)(nil).DeleteGroup), varargs...)
 }
 
 // ListGroups mocks base method.

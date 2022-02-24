@@ -16,7 +16,6 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -47,17 +46,17 @@ func Test_Sync_Success(t *testing.T) {
 	)
 
 	groups := []keycloak.Group{
-		{Name: "bar", Members: []string{"bar", "bar3"}},
+		keycloak.NewGroup("bar").WithMembers("bar", "bar3"),
+		keycloak.NewGroup("bar", "bar-team").WithMembers("bar-tm-1", "bar-tm-2"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
 		Return(groups, nil).
 		Times(1)
 
-	err := (&OrganizationReconciler{
+	err := (&PeriodicSyncer{
 		Client:           c,
 		Recorder:         erMock,
-		Scheme:           &runtime.Scheme{},
 		Keycloak:         keyMock,
 		SyncClusterRoles: []string{"import-role", "existing-role"},
 	}).Sync(ctx)
@@ -100,6 +99,12 @@ func Test_Sync_Success(t *testing.T) {
 		},
 	}, rb.Subjects, "update exiting role")
 
+	newTeam := controlv1.Team{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "bar-team", Namespace: "bar"}, &newTeam), "create team under organization")
+	assert.ElementsMatch(t, []controlv1.UserRef{
+		{Name: "bar-tm-1"},
+		{Name: "bar-tm-2"},
+	}, newTeam.Spec.UserRefs, "user refs for created team")
 }
 
 func Test_Sync_Fail_Update(t *testing.T) {
@@ -114,8 +119,8 @@ func Test_Sync_Fail_Update(t *testing.T) {
 	// By not adding buzzMember manually we simulate an error while updating the members resource
 
 	groups := []keycloak.Group{
-		{Name: "buzz", Members: []string{"buzz1", "buzz"}},
-		{Name: "bar", Members: []string{"bar", "bar3"}},
+		keycloak.NewGroup("buzz").WithMembers("buzz1", "buzz"),
+		keycloak.NewGroup("bar").WithMembers("bar", "bar3"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
@@ -125,10 +130,9 @@ func Test_Sync_Fail_Update(t *testing.T) {
 		Event(gomock.Any(), "Warning", "ImportFailed", gomock.Any()).
 		Times(1)
 
-	err := (&OrganizationReconciler{
+	err := (&PeriodicSyncer{
 		Client:   c,
 		Recorder: erMock,
-		Scheme:   &runtime.Scheme{},
 		Keycloak: keyMock,
 	}).Sync(ctx)
 	assert.Error(t, err)
@@ -155,16 +159,15 @@ func Test_Sync_Skip_Existing(t *testing.T) {
 	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb) // We need to add barMember manually as there is no control API in the tests creating them
 
 	groups := []keycloak.Group{
-		{Name: "foo", Members: []string{"foo", "foo2"}},
+		keycloak.NewGroup("foo").WithMembers("foo", "foo2"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
 		Return(groups, nil).
 		Times(1)
 
-	err := (&OrganizationReconciler{
+	err := (&PeriodicSyncer{
 		Client:   c,
-		Scheme:   &runtime.Scheme{},
 		Keycloak: keyMock,
 	}).Sync(ctx)
 	require.NoError(t, err)

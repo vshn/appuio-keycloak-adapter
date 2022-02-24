@@ -24,11 +24,11 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
-func Test_Reconcile_Success(t *testing.T) {
+func Test_OrganizationController_Reconcile_Success(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb)
-	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
+	group := keycloak.NewGroup("foo").WithMembers("bar", "bar3")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(group, nil).
@@ -55,11 +55,11 @@ func Test_Reconcile_Success(t *testing.T) {
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
-func Test_Reconcile_Failure(t *testing.T) {
+func Test_OrganizationController_Reconcile_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb)
-	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
+	group := keycloak.NewGroup("foo").WithMembers("bar", "bar3")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(keycloak.Group{}, errors.New("create failed")).
@@ -91,11 +91,11 @@ func Test_Reconcile_Failure(t *testing.T) {
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
-func Test_Reconcile_Member_Failure(t *testing.T) {
+func Test_OrganizationController_Reconcile_Member_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb)
-	group := keycloak.Group{Name: "foo", Members: []string{"bar", "bar3"}}
+	group := keycloak.NewGroup("foo").WithMembers("bar", "bar3")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(keycloak.Group{}, &keycloak.MembershipSyncErrors{
@@ -141,7 +141,7 @@ func Test_Reconcile_Member_Failure(t *testing.T) {
 	assert.Equal(t, "keycloak-adapter.vshn.net/finalizer", newMemb.Finalizers[0], "expected finalizer")
 }
 
-func Test_Reconcile_Delete(t *testing.T) {
+func Test_OrganizationController_Reconcile_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	org := *fooOrg
@@ -170,7 +170,7 @@ func Test_Reconcile_Delete(t *testing.T) {
 	require.Error(t, c.Get(ctx, types.NamespacedName{Name: "foo"}, &newOrg))
 }
 
-func Test_Reconcile_Delete_Failure(t *testing.T) {
+func Test_OrganizationController_Reconcile_Delete_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	org := *fooOrg
@@ -205,7 +205,7 @@ func Test_Reconcile_Delete_Failure(t *testing.T) {
 }
 
 // Reconcile should ignore organizations that are being imported
-func Test_Reconcile_Ignore(t *testing.T) {
+func Test_OrganizationController_Reconcile_Ignore(t *testing.T) {
 	ctx := context.Background()
 
 	org := *fooOrg

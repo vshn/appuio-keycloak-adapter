@@ -29,6 +29,29 @@ rules:
   - patch
   - update
 - apiGroups:
+  - appuio.io
+  resources:
+  - teams
+  verbs:
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - appuio.io
+  resources:
+  - teams/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - appuio.io
+  resources:
+  - teams/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - organization.appuio.io
   resources:
   - organizations
