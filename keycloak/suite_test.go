@@ -1,6 +1,8 @@
 package keycloak_test
 
 import (
+	"strings"
+
 	. "github.com/vshn/appuio-keycloak-adapter/keycloak"
 
 	gocloak "github.com/Nerzal/gocloak/v11"
@@ -104,4 +106,15 @@ func mockRemoveUser(mgc *MockGoCloak, c Client, userID, groupID string) {
 		DeleteUserFromGroup(gomock.Any(), "token", c.Realm, userID, groupID).
 		Return(nil).
 		Times(1)
+}
+
+func newGocloakGroup(id string, path ...string) *gocloak.Group {
+	if len(path) == 0 {
+		panic("group must have at least one element in path")
+	}
+	return &gocloak.Group{
+		ID:   &id,
+		Name: gocloak.StringP(path[len(path)-1]),
+		Path: gocloak.StringP("/" + strings.Join(path, "/")),
+	}
 }
