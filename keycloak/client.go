@@ -41,7 +41,7 @@ func (g Group) Path() string {
 	return fmt.Sprintf("/%s", strings.Join(g.path, "/"))
 }
 
-// Path returns the path of the group.
+// PathMembers returns the split path of the group.
 func (g Group) PathMembers() []string {
 	return g.path
 }
