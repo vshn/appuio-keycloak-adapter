@@ -48,7 +48,7 @@ func (r *PeriodicSyncer) Sync(ctx context.Context) error {
 
 	var groupErr error
 	for _, g := range gs {
-		org, err := r.syncGroup(ctx, g, orgMap[g.BaseName()])
+		org, err := r.syncGroup(ctx, g, orgMap)
 		if err != nil {
 			if groupErr == nil {
 				groupErr = errors.New("")
@@ -66,16 +66,19 @@ func (r *PeriodicSyncer) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (r *PeriodicSyncer) syncGroup(ctx context.Context, g keycloak.Group, org *orgv1.Organization) (runtime.Object, error) {
+func (r *PeriodicSyncer) syncGroup(ctx context.Context, g keycloak.Group, orgMap map[string]*orgv1.Organization) (runtime.Object, error) {
+	logger := log.FromContext(ctx)
+
 	const depth = 0
 	switch len(g.PathMembers()) - depth {
 	case 1:
-		return r.syncOrganization(ctx, g, org)
+		return r.syncOrganization(ctx, g, orgMap[g.BaseName()])
 	case 2:
 		return r.syncTeam(ctx, g)
 	}
 
-	return nil, fmt.Errorf("invalid group hierarchy `%s`", g.Path())
+	logger.Info("skipped syncing group. invalid hierarchy", "group", g)
+	return nil, nil
 }
 
 func (r *PeriodicSyncer) syncTeam(ctx context.Context, g keycloak.Group) (*controlv1.Team, error) {
