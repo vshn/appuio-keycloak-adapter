@@ -72,9 +72,14 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	ctx := ctrl.SetupSignalHandler()
 
+	var roles []string
+	if *syncRoles != "" {
+		roles = strings.Split(*syncRoles, ",")
+	}
+
 	mgr, or, err := setupManager(
 		keycloak.NewClient(*host, *realm, *username, *password),
-		strings.Split(*syncRoles, ","),
+		roles,
 		ctrl.Options{
 			Scheme:                 scheme,
 			MetricsBindAddress:     *metricsAddr,
