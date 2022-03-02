@@ -23,9 +23,6 @@ type OrganizationReconciler struct {
 	Scheme   *runtime.Scheme
 
 	Keycloak KeycloakClient
-
-	// ClusteRoles to give to group members when importing
-	SyncClusterRoles []string
 }
 
 //go:generate go run github.com/golang/mock/mockgen -destination=./ZZ_mock_eventrecorder_test.go -package controllers_test k8s.io/client-go/tools/record EventRecorder
@@ -35,7 +32,7 @@ type OrganizationReconciler struct {
 // KeycloakClient is an abstraction to interact with the Keycloak API
 type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
-	DeleteGroup(ctx context.Context, groupName string) error
+	DeleteGroup(ctx context.Context, path ...string) error
 	ListGroups(ctx context.Context) ([]keycloak.Group, error)
 }
 
@@ -166,10 +163,7 @@ func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMem
 		groupMem = append(groupMem, u.Name)
 	}
 
-	return keycloak.Group{
-		Name:    org.Name,
-		Members: groupMem,
-	}
+	return keycloak.NewGroup(org.Name).WithMembers(groupMem...)
 }
 
 // SetupWithManager sets up the controller with the Manager.

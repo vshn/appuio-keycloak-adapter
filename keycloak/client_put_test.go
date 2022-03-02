@@ -5,7 +5,7 @@ import (
 
 	"testing"
 
-	gocloak "github.com/Nerzal/gocloak/v10"
+	gocloak "github.com/Nerzal/gocloak/v11"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,10 +28,7 @@ func TestPutGroup_simple(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			{
-				ID:   gocloak.StringP("foo-id"),
-				Name: gocloak.StringP("foo-gmbh"),
-			},
+			newGocloakGroup("foo-id", "foo-gmbh"),
 		})
 	mockGetGroupMembers(mKeycloak, c, "foo-id",
 		[]*gocloak.User{
@@ -45,12 +42,7 @@ func TestPutGroup_simple(t *testing.T) {
 	mockAddUser(mKeycloak, c, "3", "foo-id")
 	mockAddUser(mKeycloak, c, "2", "foo-id")
 
-	g, err := c.PutGroup(context.TODO(), Group{
-		Name: "foo-gmbh",
-		Members: []string{
-			"user", "user2", "user3",
-		},
-	})
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user", "user2", "user3"))
 	require.NoError(t, err)
 	assert.Len(t, g.Members, 3)
 }
@@ -68,17 +60,43 @@ func TestPutGroup_new(t *testing.T) {
 	}
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh", []*gocloak.Group{})
-	mockCreateGroup(mKeycloak, c, "foo-gmbh", "foo-id")
+	mockCreateGroup(mKeycloak, c, "foo-gmbh", "/foo-gmbh", "foo-id")
 	mockGetUser(mKeycloak, c, "user", "1")
 	mockAddUser(mKeycloak, c, "1", "foo-id")
 
-	g, err := c.PutGroup(context.TODO(), Group{
-		Name: "foo-gmbh",
-		Members: []string{
-			"user",
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user"))
+	require.NoError(t, err)
+	require.Equal(t, "/foo-gmbh", g.Path())
+	assert.Len(t, g.Members, 1)
+}
+
+func TestPutGroup_new_with_path(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mKeycloak := NewMockGoCloak(ctrl)
+	c := Client{
+		Client:   mKeycloak,
+		Realm:    "foo",
+		Username: "bar",
+		Password: "buzz",
+	}
+	mockLogin(mKeycloak, c)
+	mockGetGroups(mKeycloak, c, "foo-gmbh", []*gocloak.Group{})
+	mockGetGroups(mKeycloak, c, "Parent", []*gocloak.Group{
+		{
+			ID:   gocloak.StringP("Parent-ID"),
+			Path: gocloak.StringP("/Parent"),
+			Name: gocloak.StringP("Parent"),
 		},
 	})
+	mockCreateChildGroup(mKeycloak, c, "Parent-ID", "foo-gmbh", "/Parent/foo-gmbh", "foo-id")
+	mockGetUser(mKeycloak, c, "user", "1")
+	mockAddUser(mKeycloak, c, "1", "foo-id")
+
+	g, err := c.PutGroup(context.TODO(), NewGroup("Parent", "foo-gmbh").WithMembers("user"))
 	require.NoError(t, err)
+	require.Equal(t, "/Parent/foo-gmbh", g.Path())
 	assert.Len(t, g.Members, 1)
 }
 
@@ -96,14 +114,8 @@ func TestPutGroup_multiple_matching_groups(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			{
-				ID:   gocloak.StringP("test-id"),
-				Name: gocloak.StringP("foo-gmbh-test"),
-			},
-			{
-				ID:   gocloak.StringP("foo-id"),
-				Name: gocloak.StringP("foo-gmbh"),
-			},
+			newGocloakGroup("test-id", "foo-gmbh-test"),
+			newGocloakGroup("foo-id", "foo-gmbh"),
 		})
 	mockGetGroupMembers(mKeycloak, c, "foo-id",
 		[]*gocloak.User{
@@ -117,12 +129,7 @@ func TestPutGroup_multiple_matching_groups(t *testing.T) {
 	mockAddUser(mKeycloak, c, "3", "foo-id")
 	mockAddUser(mKeycloak, c, "2", "foo-id")
 
-	g, err := c.PutGroup(context.TODO(), Group{
-		Name: "foo-gmbh",
-		Members: []string{
-			"user", "user2", "user3",
-		},
-	})
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user", "user2", "user3"))
 	require.NoError(t, err)
 	assert.Len(t, g.Members, 3)
 }
@@ -140,10 +147,7 @@ func TestPutGroup_multiple_matching_users(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			{
-				ID:   gocloak.StringP("foo-id"),
-				Name: gocloak.StringP("foo-gmbh"),
-			},
+			newGocloakGroup("foo-id", "foo-gmbh"),
 		})
 	mockGetGroupMembers(mKeycloak, c, "foo-id", []*gocloak.User{})
 	mockGetUsers(mKeycloak, c, "user", []*gocloak.User{
@@ -152,10 +156,7 @@ func TestPutGroup_multiple_matching_users(t *testing.T) {
 	})
 	mockAddUser(mKeycloak, c, "1", "foo-id")
 
-	g, err := c.PutGroup(context.TODO(), Group{
-		Name:    "foo-gmbh",
-		Members: []string{"user"},
-	})
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user"))
 	require.NoError(t, err)
 	assert.Len(t, g.Members, 1)
 }
@@ -174,10 +175,7 @@ func TestPutGroup_remove(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			{
-				ID:   gocloak.StringP("foo-id"),
-				Name: gocloak.StringP("foo-gmbh"),
-			},
+			newGocloakGroup("foo-id", "foo-gmbh"),
 		})
 	mockGetGroupMembers(mKeycloak, c, "foo-id",
 		[]*gocloak.User{
@@ -196,12 +194,7 @@ func TestPutGroup_remove(t *testing.T) {
 	mockAddUser(mKeycloak, c, "2", "foo-id")
 	mockRemoveUser(mKeycloak, c, "4", "foo-id")
 
-	g, err := c.PutGroup(context.TODO(), Group{
-		Name: "foo-gmbh",
-		Members: []string{
-			"user", "user2", "user3",
-		},
-	})
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user", "user2", "user3"))
 	require.NoError(t, err)
 	assert.Len(t, g.Members, 3)
 }

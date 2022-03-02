@@ -1,9 +1,11 @@
 package keycloak_test
 
 import (
+	"strings"
+
 	. "github.com/vshn/appuio-keycloak-adapter/keycloak"
 
-	gocloak "github.com/Nerzal/gocloak/v10"
+	gocloak "github.com/Nerzal/gocloak/v11"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -23,7 +25,9 @@ func mockLogin(mgc *MockGoCloak, c Client) {
 
 func mockListGroups(mgc *MockGoCloak, c Client, groups []*gocloak.Group) {
 	mgc.EXPECT().
-		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{}).
+		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{
+			Max: gocloak.IntP(-1),
+		}).
 		Return(groups, nil).
 		Times(1)
 }
@@ -31,17 +35,30 @@ func mockListGroups(mgc *MockGoCloak, c Client, groups []*gocloak.Group) {
 func mockGetGroups(mgc *MockGoCloak, c Client, groupName string, groups []*gocloak.Group) {
 	mgc.EXPECT().
 		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{
+			Max:    gocloak.IntP(-1),
 			Search: gocloak.StringP(groupName),
 		}).
 		Return(groups, nil).
 		Times(1)
 }
 
-func mockCreateGroup(mgc *MockGoCloak, c Client, groupName, groupID string) {
+func mockCreateGroup(mgc *MockGoCloak, c Client, groupName, groupPath, groupID string) {
+	kcg := gocloak.Group{
+		Name: &groupName,
+		Path: &groupPath,
+	}
 	mgc.EXPECT().
-		CreateGroup(gomock.Any(), "token", c.Realm, gocloak.Group{
-			Name: &groupName,
-		}).
+		CreateGroup(gomock.Any(), "token", c.Realm, kcg).
+		Return(groupID, nil).
+		Times(1)
+}
+func mockCreateChildGroup(mgc *MockGoCloak, c Client, parentID, groupName, groupPath, groupID string) {
+	kcg := gocloak.Group{
+		Name: &groupName,
+		Path: &groupPath,
+	}
+	mgc.EXPECT().
+		CreateChildGroup(gomock.Any(), "token", c.Realm, parentID, kcg).
 		Return(groupID, nil).
 		Times(1)
 }
@@ -71,6 +88,7 @@ func mockGetUsers(mgc *MockGoCloak, c Client, userName string, users []*gocloak.
 	mgc.EXPECT().
 		GetUsers(gomock.Any(), "token", c.Realm, gocloak.GetUsersParams{
 			Username: gocloak.StringP(userName),
+			Max:      gocloak.IntP(-1),
 		}).
 		Return(users, nil).
 		Times(1)
@@ -88,4 +106,15 @@ func mockRemoveUser(mgc *MockGoCloak, c Client, userID, groupID string) {
 		DeleteUserFromGroup(gomock.Any(), "token", c.Realm, userID, groupID).
 		Return(nil).
 		Times(1)
+}
+
+func newGocloakGroup(id string, path ...string) *gocloak.Group {
+	if len(path) == 0 {
+		panic("group must have at least one element in path")
+	}
+	return &gocloak.Group{
+		ID:   &id,
+		Name: gocloak.StringP(path[len(path)-1]),
+		Path: gocloak.StringP("/" + strings.Join(path, "/")),
+	}
 }

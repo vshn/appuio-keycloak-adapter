@@ -1,0 +1,8 @@
+kind: Team
+apiVersion: appuio.io/v1
+metadata:
+  namespace: example-org
+  name: example-team
+spec:
+  userRefs:
+  - name: example-user

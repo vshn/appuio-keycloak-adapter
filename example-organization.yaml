@@ -1,0 +1,4 @@
+kind: Organization
+apiVersion: organization.appuio.io/v1
+metadata:
+  name: example-org

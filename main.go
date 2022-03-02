@@ -72,9 +72,14 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	ctx := ctrl.SetupSignalHandler()
 
+	var roles []string
+	if *syncRoles != "" {
+		roles = strings.Split(*syncRoles, ",")
+	}
+
 	mgr, or, err := setupManager(
 		keycloak.NewClient(*host, *realm, *username, *password),
-		strings.Split(*syncRoles, ","),
+		roles,
 		ctrl.Options{
 			Scheme:                 scheme,
 			MetricsBindAddress:     *metricsAddr,
@@ -104,22 +109,37 @@ func main() {
 	<-c.Stop().Done()
 }
 
-func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Options) (ctrl.Manager, *controllers.OrganizationReconciler, error) {
+func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Options) (ctrl.Manager, *controllers.PeriodicSyncer, error) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), opt)
 	if err != nil {
 		return nil, nil, err
 	}
 	or := &controllers.OrganizationReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		Recorder:         mgr.GetEventRecorderFor("keycloak-adapter"),
-		Keycloak:         kc,
-		SyncClusterRoles: syncRoles,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak: kc,
 	}
 	if err = or.SetupWithManager(mgr); err != nil {
 		return nil, nil, err
 	}
+	tr := &controllers.TeamReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak: kc,
+	}
+	if err = tr.SetupWithManager(mgr); err != nil {
+		return nil, nil, err
+	}
 	//+kubebuilder:scaffold:builder
+
+	ps := &controllers.PeriodicSyncer{
+		Client:           mgr.GetClient(),
+		Recorder:         mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak:         kc,
+		SyncClusterRoles: syncRoles,
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		return nil, nil, err
@@ -127,10 +147,10 @@ func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Op
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		return nil, nil, err
 	}
-	return mgr, or, err
+	return mgr, ps, err
 }
 
-func setupSync(ctx context.Context, r *controllers.OrganizationReconciler, crontab string, timeout time.Duration) (*cron.Cron, error) {
+func setupSync(ctx context.Context, r *controllers.PeriodicSyncer, crontab string, timeout time.Duration) (*cron.Cron, error) {
 	syncLog := ctrl.Log.WithName("sync")
 	c := cron.New()
 	_, err := c.AddFunc(crontab, func() {
