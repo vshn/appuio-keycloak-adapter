@@ -5,7 +5,7 @@ import (
 
 	"testing"
 
-	gocloak "github.com/Nerzal/gocloak/v10"
+	gocloak "github.com/Nerzal/gocloak/v11"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -83,7 +83,14 @@ func TestPutGroup_new_with_path(t *testing.T) {
 	}
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh", []*gocloak.Group{})
-	mockCreateGroup(mKeycloak, c, "foo-gmbh", "/Parent/foo-gmbh", "foo-id")
+	mockGetGroups(mKeycloak, c, "Parent", []*gocloak.Group{
+		{
+			ID:   gocloak.StringP("Parent-ID"),
+			Path: gocloak.StringP("/Parent"),
+			Name: gocloak.StringP("Parent"),
+		},
+	})
+	mockCreateChildGroup(mKeycloak, c, "Parent-ID", "foo-gmbh", "/Parent/foo-gmbh", "foo-id")
 	mockGetUser(mKeycloak, c, "user", "1")
 	mockAddUser(mKeycloak, c, "1", "foo-id")
 

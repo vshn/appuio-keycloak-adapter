@@ -3,7 +3,7 @@ package keycloak_test
 import (
 	. "github.com/vshn/appuio-keycloak-adapter/keycloak"
 
-	gocloak "github.com/Nerzal/gocloak/v10"
+	gocloak "github.com/Nerzal/gocloak/v11"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -47,6 +47,16 @@ func mockCreateGroup(mgc *MockGoCloak, c Client, groupName, groupPath, groupID s
 	}
 	mgc.EXPECT().
 		CreateGroup(gomock.Any(), "token", c.Realm, kcg).
+		Return(groupID, nil).
+		Times(1)
+}
+func mockCreateChildGroup(mgc *MockGoCloak, c Client, parentID, groupName, groupPath, groupID string) {
+	kcg := gocloak.Group{
+		Name: &groupName,
+		Path: &groupPath,
+	}
+	mgc.EXPECT().
+		CreateChildGroup(gomock.Any(), "token", c.Realm, parentID, kcg).
 		Return(groupID, nil).
 		Times(1)
 }

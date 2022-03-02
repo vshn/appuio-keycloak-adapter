@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Nerzal/gocloak/v10"
+	"github.com/Nerzal/gocloak/v11"
 )
 
 // Group is a representation of a group in keycloak
@@ -95,6 +95,7 @@ type GoCloak interface {
 	LogoutUserSession(ctx context.Context, accessToken, realm, session string) error
 
 	CreateGroup(ctx context.Context, accessToken, realm string, group gocloak.Group) (string, error)
+	CreateChildGroup(ctx context.Context, accessToken, realm, groupID string, group gocloak.Group) (string, error)
 	GetGroups(ctx context.Context, accessToken, realm string, params gocloak.GetGroupsParams) ([]*gocloak.Group, error)
 	DeleteGroup(ctx context.Context, accessToken, realm, groupID string) error
 
@@ -134,23 +135,16 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	}
 	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
 
-	found, foundMemb, err := c.getGroupAndMembersByPath(ctx, token, group.BaseName())
+	found, foundMemb, err := c.getGroupAndMembers(ctx, token, group)
 	if err != nil {
 		return res, fmt.Errorf("failed finding group: %w", err)
 	}
 	if found == nil {
-		toCreate := gocloak.Group{
-			Name: gocloak.StringP(group.BaseName()),
-			Path: gocloak.StringP(group.Path()),
-		}
-		id, err := c.Client.CreateGroup(ctx, token.AccessToken, c.Realm, toCreate)
+		created, err := c.createGroup(ctx, token, group)
 		if err != nil {
 			return res, err
 		}
-		found = &gocloak.Group{
-			ID:   &id,
-			Name: gocloak.StringP(group.BaseName()),
-		}
+		found = &created
 	}
 
 	membErr := MembershipSyncErrors{}
@@ -185,6 +179,29 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	return res, nil
 }
 
+func (c Client) createGroup(ctx context.Context, token *gocloak.JWT, group Group) (gocloak.Group, error) {
+	toCreate := gocloak.Group{
+		Name: gocloak.StringP(group.BaseName()),
+		Path: gocloak.StringP(group.Path()),
+	}
+
+	if len(group.PathMembers()) == 1 {
+		id, err := c.Client.CreateGroup(ctx, token.AccessToken, c.Realm, toCreate)
+		toCreate.ID = &id
+		return toCreate, err
+	}
+
+	p := group.PathMembers()
+	parent, err := c.getGroup(ctx, token, NewGroup(p[0:len(p)-1]...))
+	if err != nil {
+		return toCreate, fmt.Errorf("could not find parent group for %v: %w", group, err)
+	}
+
+	id, err := c.Client.CreateChildGroup(ctx, token.AccessToken, c.Realm, *parent.ID, toCreate)
+	toCreate.ID = &id
+	return toCreate, err
+}
+
 // DeleteGroup deletes the Keycloak group by name.
 // The method is idempotent and will not do anything if the group does not exits.
 func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
@@ -194,7 +211,7 @@ func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
 	}
 	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
 
-	found, err := c.getGroupByPath(ctx, token, path...)
+	found, err := c.getGroup(ctx, token, NewGroup(path...))
 	if err != nil {
 		return fmt.Errorf("failed finding group: %w", err)
 	}
@@ -234,11 +251,10 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 	return res, nil
 }
 
-func (c Client) getGroupByPath(ctx context.Context, token *gocloak.JWT, path ...string) (*gocloak.Group, error) {
-	if len(path) == 0 {
+func (c Client) getGroup(ctx context.Context, token *gocloak.JWT, toSearch Group) (*gocloak.Group, error) {
+	if len(toSearch.PathMembers()) == 0 {
 		return nil, nil
 	}
-	toSearch := NewGroup(path...)
 	// This may return more than one 1 result
 	groups, err := c.Client.GetGroups(ctx, token.AccessToken, c.Realm, gocloak.GetGroupsParams{
 		Max:    defaultParams.Max,
@@ -270,15 +286,15 @@ func (c Client) getGroupByPath(ctx context.Context, token *gocloak.JWT, path ...
 	return find(g), nil
 }
 
-func (c Client) getGroupAndMembersByPath(ctx context.Context, token *gocloak.JWT, name string) (*gocloak.Group, []*gocloak.User, error) {
-	group, err := c.getGroupByPath(ctx, token, name)
+func (c Client) getGroupAndMembers(ctx context.Context, token *gocloak.JWT, toFind Group) (*gocloak.Group, []*gocloak.User, error) {
+	group, err := c.getGroup(ctx, token, toFind)
 	if err != nil || group == nil {
 		return group, nil, err
 	}
 
 	foundMemb, err := c.Client.GetGroupMembers(ctx, token.AccessToken, c.Realm, *group.ID, defaultParams)
 	if err != nil {
-		return group, foundMemb, fmt.Errorf("failed finding groupmembers for group %s: %w", name, err)
+		return group, foundMemb, fmt.Errorf("failed finding groupmembers for group %v: %w", toFind, err)
 	}
 	return group, foundMemb, nil
 

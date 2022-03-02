@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gocloak "github.com/Nerzal/gocloak/v10"
+	gocloak "github.com/Nerzal/gocloak/v11"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -47,6 +47,21 @@ func (m *MockGoCloak) AddUserToGroup(ctx context.Context, token, realm, userID, 
 func (mr *MockGoCloakMockRecorder) AddUserToGroup(ctx, token, realm, userID, groupID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddUserToGroup", reflect.TypeOf((*MockGoCloak)(nil).AddUserToGroup), ctx, token, realm, userID, groupID)
+}
+
+// CreateChildGroup mocks base method.
+func (m *MockGoCloak) CreateChildGroup(ctx context.Context, accessToken, realm, groupID string, group gocloak.Group) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateChildGroup", ctx, accessToken, realm, groupID, group)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateChildGroup indicates an expected call of CreateChildGroup.
+func (mr *MockGoCloakMockRecorder) CreateChildGroup(ctx, accessToken, realm, groupID, group interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateChildGroup", reflect.TypeOf((*MockGoCloak)(nil).CreateChildGroup), ctx, accessToken, realm, groupID, group)
 }
 
 // CreateGroup mocks base method.
