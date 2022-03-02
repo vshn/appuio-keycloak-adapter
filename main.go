@@ -124,11 +124,10 @@ func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Op
 		return nil, nil, err
 	}
 	tr := &controllers.TeamReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		Recorder:         mgr.GetEventRecorderFor("keycloak-adapter"),
-		Keycloak:         kc,
-		SyncClusterRoles: syncRoles,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak: kc,
 	}
 	if err = tr.SetupWithManager(mgr); err != nil {
 		return nil, nil, err

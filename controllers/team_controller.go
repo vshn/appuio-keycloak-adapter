@@ -21,9 +21,6 @@ type TeamReconciler struct {
 	Scheme   *runtime.Scheme
 
 	Keycloak KeycloakClient
-
-	// ClusteRoles to give to group members when importing
-	SyncClusterRoles []string
 }
 
 //+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=get;watch;update;patch
