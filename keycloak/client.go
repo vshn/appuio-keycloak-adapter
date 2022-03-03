@@ -112,6 +112,11 @@ type Client struct {
 	Realm    string
 	Username string
 	Password string
+
+	// RootGroup, if set, transparently manages groups under given root group.
+	// Searches and puts groups under the given root group and strips the root group from the return values.
+	// The root group must exist in Keycloak.
+	RootGroup string
 }
 
 // NewClient creates a new Client
@@ -128,6 +133,7 @@ func NewClient(host, realm, username, password string) Client {
 // The method is idempotent.
 func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	res := NewGroup(group.path...)
+	group = c.prependRoot(group)
 
 	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
 	if err != nil {
@@ -194,7 +200,10 @@ func (c Client) createGroup(ctx context.Context, token *gocloak.JWT, group Group
 	p := group.PathMembers()
 	parent, err := c.getGroup(ctx, token, NewGroup(p[0:len(p)-1]...))
 	if err != nil {
-		return toCreate, fmt.Errorf("could not find parent group for %v: %w", group, err)
+		return toCreate, fmt.Errorf("error finding parent group for %v: %w", group, err)
+	}
+	if parent == nil {
+		return toCreate, fmt.Errorf("could not find parent group for %v", group)
 	}
 
 	id, err := c.Client.CreateChildGroup(ctx, token.AccessToken, c.Realm, *parent.ID, toCreate)
@@ -211,7 +220,7 @@ func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
 	}
 	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
 
-	found, err := c.getGroup(ctx, token, NewGroup(path...))
+	found, err := c.getGroup(ctx, token, c.prependRoot(NewGroup(path...)))
 	if err != nil {
 		return fmt.Errorf("failed finding group: %w", err)
 	}
@@ -235,7 +244,12 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 		return nil, err
 	}
 
-	res := flatGroups(groups)
+	rootGroups := c.filterTreeWithRoot(groups)
+	if rootGroups == nil {
+		return nil, fmt.Errorf("could not find root group %q", c.RootGroup)
+	}
+
+	res := flatGroups(rootGroups)
 
 	for i, g := range res {
 		memb, err := c.Client.GetGroupMembers(ctx, token.AccessToken, c.Realm, g.id, defaultParams)
@@ -343,6 +357,44 @@ func (c Client) getUserByName(ctx context.Context, token *gocloak.JWT, name stri
 	return nil, fmt.Errorf("no user with username %s found", name)
 }
 
+func (c Client) prependRoot(g Group) Group {
+	if c.RootGroup != "" {
+		g.path = append([]string{c.RootGroup}, g.path...)
+	}
+	return g
+}
+
+func (c Client) filterTreeWithRoot(groups []*gocloak.Group) []gocloak.Group {
+	if c.RootGroup == "" {
+		rootGroups := make([]gocloak.Group, len(groups))
+		for i := range groups {
+			rootGroups[i] = *groups[i]
+		}
+		return rootGroups
+	}
+
+	trim := "/" + c.RootGroup
+	var trimPath func([]gocloak.Group) []gocloak.Group
+	trimPath = func(gs []gocloak.Group) []gocloak.Group {
+		for i := range gs {
+			g := &gs[i]
+			g.Path = gocloak.StringP(strings.TrimPrefix(*g.Path, trim))
+			if g.SubGroups != nil {
+				sg := trimPath(*g.SubGroups)
+				g.SubGroups = &sg
+			}
+		}
+		return gs
+	}
+
+	for _, g := range groups {
+		if *g.Name == c.RootGroup && g.SubGroups != nil {
+			return trimPath(*g.SubGroups)
+		}
+	}
+	return nil
+}
+
 func contains(s []string, a string) bool {
 	for _, b := range s {
 		if a == b {
@@ -367,12 +419,7 @@ func diff(a, b []string) []string {
 	return diff
 }
 
-func flatGroups(gcp []*gocloak.Group) []Group {
-	rootGroups := make([]gocloak.Group, len(gcp))
-	for i := range gcp {
-		rootGroups[i] = *gcp[i]
-	}
-
+func flatGroups(gcp []gocloak.Group) []Group {
 	flat := make([]Group, 0)
 	var flatten func([]gocloak.Group)
 	flatten = func(groups []gocloak.Group) {
@@ -385,7 +432,7 @@ func flatGroups(gcp []*gocloak.Group) []Group {
 			}
 		}
 	}
-	flatten(rootGroups)
+	flatten(gcp)
 
 	return flat
 }

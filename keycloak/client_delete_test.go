@@ -35,6 +35,26 @@ func TestDeleteGroup_simple(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteGroup_RootGroup(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mKeycloak := NewMockGoCloak(ctrl)
+	c := Client{
+		Client:    mKeycloak,
+		RootGroup: "root-group",
+	}
+	mockLogin(mKeycloak, c)
+	mockGetGroups(mKeycloak, c, "foo-gmbh",
+		[]*gocloak.Group{
+			newGocloakGroup("foo-id", "root-group", "foo-gmbh"),
+		})
+	mockDeleteGroup(mKeycloak, c, "foo-id")
+
+	err := c.DeleteGroup(context.TODO(), "foo-gmbh")
+	require.NoError(t, err)
+}
+
 func TestDeleteGroup_subgroup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
