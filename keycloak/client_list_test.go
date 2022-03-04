@@ -64,7 +64,7 @@ func TestListGroups_simple(t *testing.T) {
 	assert.Equal(t, "user-2", res[2].Members[1])
 }
 
-func TestListGroups_root_group(t *testing.T) {
+func TestListGroups_RootGroup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -99,6 +99,28 @@ func TestListGroups_root_group(t *testing.T) {
 	assert.Len(t, res, 2)
 	assert.Equal(t, "/foo-gmbh", res[0].Path())
 	assert.Equal(t, "/foo-gmbh/foo-team", res[1].Path())
+}
+
+func TestListGroups_RootGroup_no_groups_under_root(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mKeycloak := NewMockGoCloak(ctrl)
+	c := Client{
+		Client:    mKeycloak,
+		RootGroup: "root-group",
+	}
+
+	gs := []*gocloak.Group{
+		newGocloakGroup("foo-id", "foo-gmbh"),
+		newGocloakGroup("root-group-id", "root-group"),
+	}
+	mockLogin(mKeycloak, c)
+	mockListGroups(mKeycloak, c, gs)
+
+	res, err := c.ListGroups(context.TODO())
+	require.NoError(t, err)
+	assert.Len(t, res, 0)
 }
 
 func TestListGroups_RootGroup_RootNotFound(t *testing.T) {

@@ -388,10 +388,14 @@ func (c Client) filterTreeWithRoot(groups []*gocloak.Group) []gocloak.Group {
 	}
 
 	for _, g := range groups {
-		if *g.Name == c.RootGroup && g.SubGroups != nil {
-			return trimPath(*g.SubGroups)
+		if *g.Name == c.RootGroup {
+			if g.SubGroups != nil {
+				return trimPath(*g.SubGroups)
+			}
+			return []gocloak.Group{}
 		}
 	}
+
 	return nil
 }
 
