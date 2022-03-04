@@ -61,6 +61,8 @@ func main() {
 	username := flag.String("keycloak-username", "", "The username to log in to the Keycloak server.")
 	password := flag.String("keycloak-password", "", "The password to log in to the Keycloak server.")
 
+	organizationRoot := flag.String("organization-root", "", "The Keycloak top-level group under which the organizations are synced.")
+
 	crontab := flag.String("sync-schedule", "@every 5m", "A cron style schedule for the organization synchronization interval.")
 	timeout := flag.Duration("sync-timeout", 10*time.Second, "The timeout for a single synchronization run.")
 	syncRoles := flag.String("sync-roles", "", "A comma separated list of cluster roles to bind to users when importing a new organization.")
@@ -77,8 +79,11 @@ func main() {
 		roles = strings.Split(*syncRoles, ",")
 	}
 
+	kc := keycloak.NewClient(*host, *realm, *username, *password)
+	kc.RootGroup = *organizationRoot
+
 	mgr, or, err := setupManager(
-		keycloak.NewClient(*host, *realm, *username, *password),
+		kc,
 		roles,
 		ctrl.Options{
 			Scheme:                 scheme,

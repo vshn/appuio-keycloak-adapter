@@ -47,6 +47,41 @@ func TestPutGroup_simple(t *testing.T) {
 	assert.Len(t, g.Members, 3)
 }
 
+func TestPutGroup_RootGroup_update(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mKeycloak := NewMockGoCloak(ctrl)
+	c := Client{
+		Client:    mKeycloak,
+		RootGroup: "root-group",
+	}
+	mockLogin(mKeycloak, c)
+	mockGetGroups(mKeycloak, c, "foo-gmbh",
+		[]*gocloak.Group{
+			func() *gocloak.Group {
+				g := newGocloakGroup("root-group-id", "root-group")
+				g.SubGroups = &[]gocloak.Group{*newGocloakGroup("foo-id", "root-group", "foo-gmbh")}
+				return g
+			}(),
+		})
+	mockGetGroupMembers(mKeycloak, c, "foo-id",
+		[]*gocloak.User{
+			{
+				ID:       gocloak.StringP("1"),
+				Username: gocloak.StringP("user"),
+			},
+		})
+	mockGetUser(mKeycloak, c, "user2", "2")
+	mockGetUser(mKeycloak, c, "user3", "3")
+	mockAddUser(mKeycloak, c, "3", "foo-id")
+	mockAddUser(mKeycloak, c, "2", "foo-id")
+
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user", "user2", "user3"))
+	require.NoError(t, err)
+	assert.Len(t, g.Members, 3)
+}
+
 func TestPutGroup_new(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -68,6 +103,51 @@ func TestPutGroup_new(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "/foo-gmbh", g.Path())
 	assert.Len(t, g.Members, 1)
+}
+
+func TestPutGroup_RootGroup_new(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mKeycloak := NewMockGoCloak(ctrl)
+	c := Client{
+		Client:    mKeycloak,
+		RootGroup: "root-group",
+	}
+	mockLogin(mKeycloak, c)
+	mockGetGroups(mKeycloak, c, "foo-gmbh", []*gocloak.Group{})
+	mockGetGroups(mKeycloak, c, "root-group", []*gocloak.Group{
+		{
+			ID:   gocloak.StringP("root-group-id"),
+			Path: gocloak.StringP("/root-group"),
+			Name: gocloak.StringP("root-group"),
+		},
+	})
+	mockCreateChildGroup(mKeycloak, c, "root-group-id", "foo-gmbh", "/root-group/foo-gmbh", "foo-id")
+	mockGetUser(mKeycloak, c, "user", "1")
+	mockAddUser(mKeycloak, c, "1", "foo-id")
+
+	g, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user"))
+	require.NoError(t, err)
+	require.Equal(t, "/foo-gmbh", g.Path())
+	assert.Len(t, g.Members, 1)
+}
+
+func TestPutGroup_RootGroup_non_existing_root_group(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mKeycloak := NewMockGoCloak(ctrl)
+	c := Client{
+		Client:    mKeycloak,
+		RootGroup: "root-group",
+	}
+	mockLogin(mKeycloak, c)
+	mockGetGroups(mKeycloak, c, "foo-gmbh", []*gocloak.Group{})
+	mockGetGroups(mKeycloak, c, "root-group", []*gocloak.Group{})
+
+	_, err := c.PutGroup(context.TODO(), NewGroup("foo-gmbh").WithMembers("user"))
+	require.Error(t, err)
 }
 
 func TestPutGroup_new_with_path(t *testing.T) {
@@ -161,7 +241,7 @@ func TestPutGroup_multiple_matching_users(t *testing.T) {
 	assert.Len(t, g.Members, 1)
 }
 
-func TestPutGroup_remove(t *testing.T) {
+func TestPutGroup_remove_member(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
