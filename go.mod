@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Nerzal/gocloak/v11 v11.0.1
-	github.com/appuio/control-api v0.5.0
+	github.com/appuio/control-api v0.5.3
 	github.com/golang/mock v1.6.0
 	github.com/stretchr/testify v1.7.0
 	k8s.io/apimachinery v0.23.4
