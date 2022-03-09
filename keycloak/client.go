@@ -109,9 +109,11 @@ type GoCloak interface {
 type Client struct {
 	Client GoCloak
 
-	Realm    string
-	Username string
-	Password string
+	Realm string
+	// LoginRealm is used for the client to authenticate against keycloak. If not set Realm is used.
+	LoginRealm string
+	Username   string
+	Password   string
 
 	// RootGroup, if set, transparently manages groups under given root group.
 	// Searches and puts groups under the given root group and strips the root group from the return values.
@@ -135,11 +137,11 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	res := NewGroup(group.path...)
 	group = c.prependRoot(group)
 
-	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
+	token, err := c.login(ctx)
 	if err != nil {
 		return res, fmt.Errorf("failed binding to keycloak: %w", err)
 	}
-	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
+	defer c.logout(ctx, token)
 
 	found, foundMemb, err := c.getGroupAndMembers(ctx, token, group)
 	if err != nil {
@@ -214,11 +216,11 @@ func (c Client) createGroup(ctx context.Context, token *gocloak.JWT, group Group
 // DeleteGroup deletes the Keycloak group by name.
 // The method is idempotent and will not do anything if the group does not exits.
 func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
-	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
+	token, err := c.login(ctx)
 	if err != nil {
 		return fmt.Errorf("failed binding to keycloak: %w", err)
 	}
-	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
+	defer c.logout(ctx, token)
 
 	found, err := c.getGroup(ctx, token, c.prependRoot(NewGroup(path...)))
 	if err != nil {
@@ -233,11 +235,11 @@ func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
 // ListGroups returns all Keycloak groups in the realm.
 // This is potentially very expensive, as it needs to iterate over all groups to get their members.
 func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
-	token, err := c.Client.LoginAdmin(ctx, c.Username, c.Password, c.Realm)
+	token, err := c.login(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed binding to keycloak: %w", err)
 	}
-	defer c.Client.LogoutUserSession(ctx, token.AccessToken, c.Realm, token.SessionState)
+	defer c.logout(ctx, token)
 
 	groups, err := c.Client.GetGroups(ctx, token.AccessToken, c.Realm, defaultParams)
 	if err != nil {
@@ -263,6 +265,21 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 	}
 
 	return res, nil
+}
+
+func (c Client) loginRealm() string {
+	if c.LoginRealm != "" {
+		return c.LoginRealm
+	}
+	return c.Realm
+}
+
+func (c Client) login(ctx context.Context) (*gocloak.JWT, error) {
+	return c.Client.LoginAdmin(ctx, c.Username, c.Password, c.loginRealm())
+}
+
+func (c Client) logout(ctx context.Context, token *gocloak.JWT) error {
+	return c.Client.LogoutUserSession(ctx, token.AccessToken, c.loginRealm(), token.SessionState)
 }
 
 func (c Client) getGroup(ctx context.Context, token *gocloak.JWT, toSearch Group) (*gocloak.Group, error) {
