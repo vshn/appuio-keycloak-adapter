@@ -58,6 +58,7 @@ func main() {
 
 	host := flag.String("keycloak-url", "", "The address of the Keycloak server (E.g. `https://keycloak.example.com`).")
 	realm := flag.String("keycloak-realm", "", "The realm to sync the groups to.")
+	loginRealm := flag.String("keycloak-login-realm", "", "The realm to log in to the Keycloak server. `keycloak-realm` is used if not set.")
 	username := flag.String("keycloak-username", "", "The username to log in to the Keycloak server.")
 	password := flag.String("keycloak-password", "", "The password to log in to the Keycloak server.")
 
@@ -81,6 +82,7 @@ func main() {
 
 	kc := keycloak.NewClient(*host, *realm, *username, *password)
 	kc.RootGroup = *organizationRoot
+	kc.LoginRealm = *loginRealm
 
 	mgr, or, err := setupManager(
 		kc,
