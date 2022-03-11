@@ -5,12 +5,19 @@ metadata:
   creationTimestamp: null
   name: appuio-keycloak-adapter
 rules:
+- resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - appuio.io
   resources:
   - organizationmembers
   verbs:
+  - create
   - get
+  - list
   - patch
   - update
   - watch
@@ -33,7 +40,9 @@ rules:
   resources:
   - teams
   verbs:
+  - create
   - get
+  - list
   - patch
   - update
   - watch
@@ -53,24 +62,40 @@ rules:
   - update
 - apiGroups:
   - organization.appuio.io
+  - rbac.appuio.io
   resources:
   - organizations
   verbs:
+  - create
   - get
+  - list
   - patch
   - update
   - watch
 - apiGroups:
   - organization.appuio.io
+  - rbac.appuio.io
   resources:
   - organizations/finalizers
   verbs:
   - update
 - apiGroups:
   - organization.appuio.io
+  - rbac.appuio.io
   resources:
   - organizations/status
   verbs:
   - get
+  - patch
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - subjects
+  verbs:
+  - create
+  - get
+  - list
   - patch
   - update

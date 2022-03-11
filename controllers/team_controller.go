@@ -23,7 +23,7 @@ type TeamReconciler struct {
 	Keycloak KeycloakClient
 }
 
-//+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=get;watch;update;patch
+//+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=appuio.io,resources=teams/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appuio.io,resources=teams/finalizers,verbs=update
 
