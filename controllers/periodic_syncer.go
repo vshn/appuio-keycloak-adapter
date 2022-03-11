@@ -32,6 +32,10 @@ type PeriodicSyncer struct {
 	SyncClusterRoles []string
 }
 
+//+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers,verbs=create
+//+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=create
+//+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations,verbs=create
+
 // Sync lists all Keycloak groups in the realm and creates corresponding Organizations if they do not exist
 func (r *PeriodicSyncer) Sync(ctx context.Context) error {
 	logger := log.FromContext(ctx)
