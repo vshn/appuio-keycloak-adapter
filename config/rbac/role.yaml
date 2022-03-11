@@ -62,6 +62,7 @@ rules:
   - update
 - apiGroups:
   - organization.appuio.io
+  - rbac.appuio.io
   resources:
   - organizations
   verbs:
@@ -73,15 +74,28 @@ rules:
   - watch
 - apiGroups:
   - organization.appuio.io
+  - rbac.appuio.io
   resources:
   - organizations/finalizers
   verbs:
   - update
 - apiGroups:
   - organization.appuio.io
+  - rbac.appuio.io
   resources:
   - organizations/status
   verbs:
   - get
+  - patch
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - subjects
+  verbs:
+  - create
+  - get
+  - list
   - patch
   - update

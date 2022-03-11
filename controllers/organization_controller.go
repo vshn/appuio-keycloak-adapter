@@ -38,9 +38,9 @@ type KeycloakClient interface {
 
 var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
 
-//+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=organization.appuio.io,resources=organizations/finalizers,verbs=update
+//+kubebuilder:rbac:groups=organization.appuio.io;rbac.appuio.io,resources=organizations,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=organization.appuio.io;rbac.appuio.io,resources=organizations/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=organization.appuio.io;rbac.appuio.io,resources=organizations/finalizers,verbs=update
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers/finalizers,verbs=update
