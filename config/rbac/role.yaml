@@ -5,6 +5,11 @@ metadata:
   creationTimestamp: null
   name: appuio-keycloak-adapter
 rules:
+- resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - appuio.io
   resources:

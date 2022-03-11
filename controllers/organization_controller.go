@@ -45,6 +45,8 @@ var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers/finalizers,verbs=update
 
+//+kubebuilder:rbac:groups=,resources=events,verbs=create;patch
+
 // Reconcile reacts on changes of Organizations and OrganizationMembers and mirrors these changes to groups in Keycloak
 func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
