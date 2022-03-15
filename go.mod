@@ -6,7 +6,7 @@ require (
 	github.com/Nerzal/gocloak/v11 v11.0.1
 	github.com/appuio/control-api v0.5.3
 	github.com/golang/mock v1.6.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	k8s.io/apimachinery v0.23.4
 	k8s.io/client-go v0.23.4
 	sigs.k8s.io/controller-runtime v0.11.1
