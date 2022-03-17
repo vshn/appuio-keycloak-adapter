@@ -83,3 +83,18 @@ func (mr *MockKeycloakClientMockRecorder) PutGroup(ctx, group interface{}) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutGroup", reflect.TypeOf((*MockKeycloakClient)(nil).PutGroup), ctx, group)
 }
+
+// PutUser mocks base method.
+func (m *MockKeycloakClient) PutUser(ctx context.Context, user keycloak.User) (keycloak.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutUser", ctx, user)
+	ret0, _ := ret[0].(keycloak.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PutUser indicates an expected call of PutUser.
+func (mr *MockKeycloakClientMockRecorder) PutUser(ctx, user interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutUser", reflect.TypeOf((*MockKeycloakClient)(nil).PutUser), ctx, user)
+}

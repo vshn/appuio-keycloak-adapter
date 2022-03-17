@@ -108,6 +108,13 @@ func mockRemoveUser(mgc *MockGoCloak, c Client, userID, groupID string) {
 		Times(1)
 }
 
+func mockUpdateUser(mgc *MockGoCloak, c Client, user gocloak.User) {
+	mgc.EXPECT().
+		UpdateUser(gomock.Any(), "token", c.Realm, user).
+		Return(nil).
+		Times(1)
+}
+
 func newGocloakGroup(id string, path ...string) *gocloak.Group {
 	if len(path) == 0 {
 		panic("group must have at least one element in path")

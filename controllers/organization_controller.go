@@ -34,6 +34,8 @@ type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 	DeleteGroup(ctx context.Context, path ...string) error
 	ListGroups(ctx context.Context) ([]keycloak.Group, error)
+
+	PutUser(ctx context.Context, user keycloak.User) (keycloak.User, error)
 }
 
 var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"

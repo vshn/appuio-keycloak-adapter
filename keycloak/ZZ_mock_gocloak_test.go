@@ -180,3 +180,17 @@ func (mr *MockGoCloakMockRecorder) LogoutUserSession(ctx, accessToken, realm, se
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogoutUserSession", reflect.TypeOf((*MockGoCloak)(nil).LogoutUserSession), ctx, accessToken, realm, session)
 }
+
+// UpdateUser mocks base method.
+func (m *MockGoCloak) UpdateUser(ctx context.Context, accessToken, realm string, user gocloak.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUser", ctx, accessToken, realm, user)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateUser indicates an expected call of UpdateUser.
+func (mr *MockGoCloakMockRecorder) UpdateUser(ctx, accessToken, realm, user interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUser", reflect.TypeOf((*MockGoCloak)(nil).UpdateUser), ctx, accessToken, realm, user)
+}

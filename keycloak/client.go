@@ -8,6 +8,10 @@ import (
 	"github.com/Nerzal/gocloak/v11"
 )
 
+const (
+	KeycloakDefaultOrganizationRef = "appuio.io/default-organization"
+)
+
 // Group is a representation of a group in keycloak
 type Group struct {
 	id string
@@ -65,6 +69,24 @@ func (err MembershipSyncError) Error() string {
 	return err.Err.Error()
 }
 
+func (err MembershipSyncError) Unwrap() error {
+	return err.Err
+}
+
+// MembershipSyncError is a custom error indicating the failure of syncing the membership of a single user.
+type UserNotFoundError struct {
+	Username string
+}
+
+func (err UserNotFoundError) Is(target error) bool {
+	_, ok := target.(UserNotFoundError)
+	return ok
+}
+
+func (err UserNotFoundError) Error() string {
+	return fmt.Sprintf("user %q not found", err.Username)
+}
+
 // ErrEvent is the reason this error was thrown.
 // It should be short and unique, imagine people writing switch statements to handle them.
 type ErrEvent string
@@ -101,6 +123,8 @@ type GoCloak interface {
 
 	GetGroupMembers(ctx context.Context, accessToken, realm, groupID string, params gocloak.GetGroupsParams) ([]*gocloak.User, error)
 	GetUsers(ctx context.Context, accessToken, realm string, params gocloak.GetUsersParams) ([]*gocloak.User, error)
+	// GetUserByID(ctx context.Context, accessToken, realm, userID string) (*gocloak.User, error)
+	UpdateUser(ctx context.Context, accessToken, realm string, user gocloak.User) error
 	AddUserToGroup(ctx context.Context, token, realm, userID, groupID string) error
 	DeleteUserFromGroup(ctx context.Context, token, realm, userID, groupID string) error
 }
@@ -371,7 +395,7 @@ func (c Client) getUserByName(ctx context.Context, token *gocloak.JWT, name stri
 			return users[i], nil
 		}
 	}
-	return nil, fmt.Errorf("no user with username %s found", name)
+	return nil, UserNotFoundError{Username: name}
 }
 
 func (c Client) prependRoot(g Group) Group {
@@ -414,6 +438,26 @@ func (c Client) filterTreeWithRoot(groups []*gocloak.Group) []gocloak.Group {
 	}
 
 	return nil
+}
+
+// PutUser updates the given user referenced by its `Username` property.
+// An error is returned if a user can't be found.
+func (c Client) PutUser(ctx context.Context, user User) (User, error) {
+	token, err := c.login(ctx)
+	if err != nil {
+		return User{}, fmt.Errorf("failed binding to keycloak: %w", err)
+	}
+	defer c.logout(ctx, token)
+
+	kcUser, err := c.getUserByName(ctx, token, user.Username)
+	if err != nil {
+		return User{}, fmt.Errorf("failed querying keycloak for user %q: %w", user.Username, err)
+	}
+
+	toUpdate := user
+	toUpdate.ID = *kcUser.ID
+	return UserFromKeycloakUser(*kcUser).overlay(toUpdate),
+		c.Client.UpdateUser(ctx, token.AccessToken, c.Realm, toUpdate.KeycloakUser())
 }
 
 func contains(s []string, a string) bool {
