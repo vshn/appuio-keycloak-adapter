@@ -139,6 +139,15 @@ func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Op
 	if err = tr.SetupWithManager(mgr); err != nil {
 		return nil, nil, err
 	}
+	ur := &controllers.UserReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak: kc,
+	}
+	if err = ur.SetupWithManager(mgr); err != nil {
+		return nil, nil, err
+	}
 	//+kubebuilder:scaffold:builder
 
 	ps := &controllers.PeriodicSyncer{
