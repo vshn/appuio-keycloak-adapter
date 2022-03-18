@@ -76,12 +76,6 @@ rules:
 - apiGroups:
   - appuio.io
   resources:
-  - users/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - appuio.io
-  resources:
   - users/status
   verbs:
   - get
