@@ -45,13 +45,19 @@ func Test_Sync_Success(t *testing.T) {
 		},
 	)
 
-	groups := []keycloak.Group{
-		keycloak.NewGroup("bar").WithMemberNames("bar", "bar3"),
-		keycloak.NewGroup("bar", "bar-team").WithMemberNames("bar-tm-1", "bar-tm-2"),
+	barOrg := keycloak.NewGroup("bar")
+	barOrg.Members = []keycloak.User{
+		{Username: "bar", DefaultOrganizationRef: "bar"},
+		{Username: "bar3", DefaultOrganizationRef: "bar-mss"},
+	}
+	barTeam := keycloak.NewGroup("bar", "bar-team")
+	barTeam.Members = []keycloak.User{
+		{Username: "bar-tm-1"},
+		{Username: "bar-tm-2", DefaultOrganizationRef: "bar-outsourcing"},
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
-		Return(groups, nil).
+		Return([]keycloak.Group{barOrg, barTeam}, nil).
 		Times(1)
 
 	err := (&PeriodicSyncer{
@@ -105,6 +111,15 @@ func Test_Sync_Success(t *testing.T) {
 		{Name: "bar-tm-1"},
 		{Name: "bar-tm-2"},
 	}, newTeam.Spec.UserRefs, "user refs for created team")
+
+	createdUsers := controlv1.UserList{}
+	require.NoError(t, c.List(ctx, &createdUsers), "create users")
+	comparable := make([]keycloak.User, len(createdUsers.Items))
+	for i := range createdUsers.Items {
+		comparable[i].Username = createdUsers.Items[i].Name
+		comparable[i].DefaultOrganizationRef = createdUsers.Items[i].Spec.Preferences.DefaultOrganizationRef
+	}
+	assert.ElementsMatch(t, comparable, append(barOrg.Members, barTeam.Members...), "create users found in teams and organizations")
 }
 
 func Test_Sync_Fail_Update(t *testing.T) {
@@ -189,4 +204,62 @@ func Test_Sync_Skip_Existing(t *testing.T) {
 		{Name: "baz"},
 		{Name: "qux"},
 	}, newTeam.Spec.UserRefs)
+}
+
+func Test_Sync_Skip_ExistingUsers(t *testing.T) {
+	ctx := context.Background()
+	subject := controlv1.User{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "existing",
+		},
+		Spec: controlv1.UserSpec{
+			Preferences: controlv1.UserPreferences{
+				DefaultOrganizationRef: "current-organization",
+			},
+		},
+	}
+
+	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb, &subject)
+
+	fooGroup := keycloak.NewGroup("foo")
+	fooGroup.Members = []keycloak.User{
+		{
+			Username:               subject.Name,
+			DefaultOrganizationRef: "updated-organization",
+		},
+	}
+
+	keyMock.EXPECT().
+		ListGroups(gomock.Any()).
+		Return([]keycloak.Group{fooGroup}, nil).
+		Times(1)
+
+	err := (&PeriodicSyncer{
+		Client:   c,
+		Keycloak: keyMock,
+	}).Sync(ctx)
+	require.NoError(t, err)
+
+	updatedSubject := controlv1.User{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: subject.Name}, &updatedSubject))
+	assert.Equal(t, subject, subject)
+}
+
+func Test_Sync_Skip_UserInMultipleGroups(t *testing.T) {
+	ctx := context.Background()
+	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb)
+
+	keyMock.EXPECT().
+		ListGroups(gomock.Any()).
+		Return([]keycloak.Group{
+			keycloak.NewGroup("foo").WithMemberNames("in-multiple-groups"),
+			keycloak.NewGroup("foo", "bar").WithMemberNames("in-multiple-groups"),
+		}, nil).
+		Times(1)
+
+	err := (&PeriodicSyncer{
+		Client:   c,
+		Keycloak: keyMock,
+	}).Sync(ctx)
+	require.NoError(t, err)
 }
