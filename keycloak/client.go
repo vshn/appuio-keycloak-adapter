@@ -73,7 +73,7 @@ func (err MembershipSyncError) Unwrap() error {
 	return err.Err
 }
 
-// MembershipSyncError is a custom error indicating the failure of syncing the membership of a single user.
+// UserNotFoundError indicates a user could not be found.
 type UserNotFoundError struct {
 	Username string
 }

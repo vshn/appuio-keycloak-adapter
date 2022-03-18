@@ -21,6 +21,7 @@ type User struct {
 	DefaultOrganizationRef string
 }
 
+// UserFromKeycloakUser returns a user with attributes mapped from the given keycloak user
 func UserFromKeycloakUser(u gocloak.User) User {
 	r := User{}
 	if u.ID != nil {
@@ -48,6 +49,7 @@ func UserFromKeycloakUser(u gocloak.User) User {
 	return r
 }
 
+// DisplayName returns the disply name of this user
 func (u User) DisplayName() string {
 	if u.FirstName == "" {
 		return u.LastName
@@ -59,6 +61,7 @@ func (u User) DisplayName() string {
 	return u.FirstName + " " + u.LastName
 }
 
+// KeycloakUser returns a gocloak.User with attributes set from this user
 func (u User) KeycloakUser() gocloak.User {
 	r := gocloak.User{}
 	if u.ID != "" {
