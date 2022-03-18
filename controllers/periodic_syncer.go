@@ -84,11 +84,7 @@ func (r *PeriodicSyncer) createMissingUsers(ctx context.Context, groups []keyclo
 			if _, exists := existing[m.Username]; exists {
 				continue
 			}
-			err := r.Create(ctx, &controlv1.User{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: m.Username,
-				},
-			})
+			err := r.createUser(ctx, m)
 			if err != nil {
 				createErr = multierr.Append(createErr, err)
 				continue
@@ -98,6 +94,19 @@ func (r *PeriodicSyncer) createMissingUsers(ctx context.Context, groups []keyclo
 	}
 
 	return createErr
+}
+
+func (r *PeriodicSyncer) createUser(ctx context.Context, m keycloak.User) error {
+	return r.Create(ctx, &controlv1.User{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: m.Username,
+		},
+		Spec: controlv1.UserSpec{
+			Preferences: controlv1.UserPreferences{
+				DefaultOrganizationRef: m.DefaultOrganizationRef,
+			},
+		},
+	})
 }
 
 func (r *PeriodicSyncer) syncGroup(ctx context.Context, g keycloak.Group, orgMap map[string]*orgv1.Organization) (runtime.Object, error) {
