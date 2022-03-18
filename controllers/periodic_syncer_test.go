@@ -156,10 +156,11 @@ func Test_Sync_Fail_Update(t *testing.T) {
 func Test_Sync_Skip_Existing(t *testing.T) {
 	ctx := context.Background()
 
-	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb) // We need to add barMember manually as there is no control API in the tests creating them
+	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb, barTeam) // We need to add barMember manually as there is no control API in the tests creating them
 
 	groups := []keycloak.Group{
 		keycloak.NewGroup("foo").WithMemberNames("foo", "foo2"),
+		keycloak.NewGroup("foo", "bar").WithMemberNames("updated-member-1", "updated-member-2"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
@@ -182,4 +183,10 @@ func Test_Sync_Skip_Existing(t *testing.T) {
 		{Name: "bar"},
 	}, newMemb.Spec.UserRefs)
 
+	newTeam := controlv1.Team{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Namespace: "foo", Name: "bar"}, &newTeam))
+	assert.ElementsMatch(t, []controlv1.UserRef{
+		{Name: "baz"},
+		{Name: "qux"},
+	}, newTeam.Spec.UserRefs)
 }
