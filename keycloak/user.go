@@ -2,6 +2,12 @@ package keycloak
 
 import "github.com/Nerzal/gocloak/v11"
 
+const (
+	// KeycloakDefaultOrganizationRef references the keycloak user attribute.
+	// TODO(bastjan) If we add more attributes I'd use struct tags struct{ DefaultOrganizationRef string `kcattr:"appuio.io/default-organization"` }
+	KeycloakDefaultOrganizationRef = "appuio.io/default-organization"
+)
+
 // User is a representation of a user in keycloak
 type User struct {
 	ID string

@@ -8,10 +8,6 @@ import (
 	"github.com/Nerzal/gocloak/v11"
 )
 
-const (
-	KeycloakDefaultOrganizationRef = "appuio.io/default-organization"
-)
-
 // Group is a representation of a group in keycloak
 type Group struct {
 	id string
