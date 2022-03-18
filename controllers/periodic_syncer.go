@@ -2,13 +2,11 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
-	"github.com/vshn/appuio-keycloak-adapter/keycloak"
-
+	"go.uber.org/multierr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +15,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 )
 
 const orgImportAnnot = "keycloak-adapter.vshn.net/importing"
@@ -56,20 +56,48 @@ func (r *PeriodicSyncer) Sync(ctx context.Context) error {
 	for _, g := range gs {
 		org, err := r.syncGroup(ctx, g, orgMap)
 		if err != nil {
-			if groupErr == nil {
-				groupErr = errors.New("")
-			}
 			logger.WithValues("group", g).Error(err, "import of group failed")
 			if org != nil {
 				r.Recorder.Event(org, "Warning", "ImportFailed", err.Error())
 			}
-			groupErr = fmt.Errorf("%w\n%s: %s", groupErr, g.BaseName(), err.Error())
+			groupErr = multierr.Append(groupErr, fmt.Errorf("%w\n%s: %s", groupErr, g.BaseName(), err.Error()))
 		}
 	}
-	if groupErr != nil {
-		return fmt.Errorf("partial sync failure:\n%w", groupErr)
+	userErr := r.createMissingUsers(ctx, gs)
+
+	if err := multierr.Append(groupErr, userErr); err != nil {
+		return fmt.Errorf("partial sync failure:\n%w", err)
 	}
+
 	return nil
+}
+
+func (r *PeriodicSyncer) createMissingUsers(ctx context.Context, groups []keycloak.Group) error {
+	existing, err := r.fetchAPIUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot list Users: %w", err)
+	}
+
+	var createErr error
+	for _, g := range groups {
+		for _, m := range g.Members {
+			if _, exists := existing[m]; exists {
+				continue
+			}
+			err := r.Create(ctx, &controlv1.User{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: m,
+				},
+			})
+			if err != nil {
+				createErr = multierr.Append(createErr, err)
+				continue
+			}
+			existing[m] = struct{}{}
+		}
+	}
+
+	return createErr
 }
 
 func (r *PeriodicSyncer) syncGroup(ctx context.Context, g keycloak.Group, orgMap map[string]*orgv1.Organization) (runtime.Object, error) {
@@ -151,6 +179,20 @@ func (r *PeriodicSyncer) fetchOrganizationMap(ctx context.Context) (map[string]*
 		orgMap[o.Name] = &orgs.Items[i]
 	}
 	return orgMap, nil
+}
+
+func (r *PeriodicSyncer) fetchAPIUsers(ctx context.Context) (map[string]struct{}, error) {
+	users := controlv1.UserList{}
+	err := r.List(ctx, &users)
+	if err != nil {
+		return nil, err
+	}
+
+	userMap := map[string]struct{}{}
+	for _, u := range users.Items {
+		userMap[u.Name] = struct{}{}
+	}
+	return userMap, nil
 }
 
 func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string, members []string) (*controlv1.Team, error) {
