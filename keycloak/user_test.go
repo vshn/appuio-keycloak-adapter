@@ -54,6 +54,8 @@ func TestUser_KeycloakUser(t *testing.T) {
 
 func TestUser_DisplayName(t *testing.T) {
 	require.Equal(t, "Foo Bar", User{FirstName: "Foo", LastName: "Bar"}.DisplayName())
+	require.Equal(t, "Foo", User{FirstName: "Foo"}.DisplayName())
+	require.Equal(t, "Bar", User{LastName: "Bar"}.DisplayName())
 }
 
 func TestUser_overlay(t *testing.T) {

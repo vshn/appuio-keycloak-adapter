@@ -43,6 +43,13 @@ func UserFromKeycloakUser(u gocloak.User) User {
 }
 
 func (u User) DisplayName() string {
+	if u.FirstName == "" {
+		return u.LastName
+	}
+	if u.LastName == "" {
+		return u.FirstName
+	}
+
 	return u.FirstName + " " + u.LastName
 }
 
