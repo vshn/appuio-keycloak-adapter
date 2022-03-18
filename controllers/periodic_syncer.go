@@ -81,19 +81,19 @@ func (r *PeriodicSyncer) createMissingUsers(ctx context.Context, groups []keyclo
 	var createErr error
 	for _, g := range groups {
 		for _, m := range g.Members {
-			if _, exists := existing[m]; exists {
+			if _, exists := existing[m.Username]; exists {
 				continue
 			}
 			err := r.Create(ctx, &controlv1.User{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: m,
+					Name: m.Username,
 				},
 			})
 			if err != nil {
 				createErr = multierr.Append(createErr, err)
 				continue
 			}
-			existing[m] = struct{}{}
+			existing[m.Username] = struct{}{}
 		}
 	}
 
@@ -195,7 +195,7 @@ func (r *PeriodicSyncer) fetchAPIUsers(ctx context.Context) (map[string]struct{}
 	return userMap, nil
 }
 
-func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string, members []string) (*controlv1.Team, error) {
+func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string, members []keycloak.User) (*controlv1.Team, error) {
 	team := &controlv1.Team{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -208,7 +208,7 @@ func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string,
 
 	team.Spec.UserRefs = make([]controlv1.UserRef, len(members))
 	for i, m := range members {
-		team.Spec.UserRefs[i] = controlv1.UserRef{Name: m}
+		team.Spec.UserRefs[i] = controlv1.UserRef{Name: m.Username}
 	}
 	err := r.Create(ctx, team)
 	return team, err
@@ -247,7 +247,7 @@ func (r *PeriodicSyncer) updateOrganizationMembersFromGroup(ctx context.Context,
 	}
 	orgMemb.Spec.UserRefs = make([]controlv1.UserRef, len(group.Members))
 	for i, m := range group.Members {
-		orgMemb.Spec.UserRefs[i] = controlv1.UserRef{Name: m}
+		orgMemb.Spec.UserRefs[i] = controlv1.UserRef{Name: m.Username}
 	}
 	return r.Update(ctx, &orgMemb)
 }
@@ -258,7 +258,7 @@ func (r *PeriodicSyncer) setRolebindingsFromGroup(ctx context.Context, group key
 		subjects = append(subjects, rbacv1.Subject{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     m,
+			Name:     m.Username,
 		})
 	}
 

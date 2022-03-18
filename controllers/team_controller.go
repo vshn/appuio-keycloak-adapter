@@ -96,7 +96,7 @@ func (r *TeamReconciler) updateTeamStatus(ctx context.Context, team *controlv1.T
 	userRefs := make([]controlv1.UserRef, 0, len(group.Members))
 	for _, u := range group.Members {
 		userRefs = append(userRefs, controlv1.UserRef{
-			Name: u,
+			Name: u.Username,
 		})
 	}
 	team.Status.ResolvedUserRefs = userRefs
@@ -110,7 +110,7 @@ func buildTeamKeycloakGroup(team *controlv1.Team) keycloak.Group {
 		groupMem = append(groupMem, u.Name)
 	}
 
-	return keycloak.NewGroup(team.Namespace, team.Name).WithMembers(groupMem...)
+	return keycloak.NewGroup(team.Namespace, team.Name).WithMemberNames(groupMem...)
 }
 
 // SetupWithManager sets up the controller with the Manager.

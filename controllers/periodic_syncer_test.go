@@ -46,8 +46,8 @@ func Test_Sync_Success(t *testing.T) {
 	)
 
 	groups := []keycloak.Group{
-		keycloak.NewGroup("bar").WithMembers("bar", "bar3"),
-		keycloak.NewGroup("bar", "bar-team").WithMembers("bar-tm-1", "bar-tm-2"),
+		keycloak.NewGroup("bar").WithMemberNames("bar", "bar3"),
+		keycloak.NewGroup("bar", "bar-team").WithMemberNames("bar-tm-1", "bar-tm-2"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
@@ -119,8 +119,8 @@ func Test_Sync_Fail_Update(t *testing.T) {
 	// By not adding buzzMember manually we simulate an error while updating the members resource
 
 	groups := []keycloak.Group{
-		keycloak.NewGroup("buzz").WithMembers("buzz1", "buzz"),
-		keycloak.NewGroup("bar").WithMembers("bar", "bar3"),
+		keycloak.NewGroup("buzz").WithMemberNames("buzz1", "buzz"),
+		keycloak.NewGroup("bar").WithMemberNames("bar", "bar3"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
@@ -159,7 +159,7 @@ func Test_Sync_Skip_Existing(t *testing.T) {
 	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb) // We need to add barMember manually as there is no control API in the tests creating them
 
 	groups := []keycloak.Group{
-		keycloak.NewGroup("foo").WithMembers("foo", "foo2"),
+		keycloak.NewGroup("foo").WithMemberNames("foo", "foo2"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).

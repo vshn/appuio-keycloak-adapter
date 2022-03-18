@@ -28,7 +28,7 @@ func Test_OrganizationController_Reconcile_Success(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb)
-	group := keycloak.NewGroup("foo").WithMembers("bar", "bar3")
+	group := keycloak.NewGroup("foo").WithMemberNames("bar", "bar3")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(group, nil).
@@ -59,7 +59,7 @@ func Test_OrganizationController_Reconcile_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb)
-	group := keycloak.NewGroup("foo").WithMembers("bar", "bar3")
+	group := keycloak.NewGroup("foo").WithMemberNames("bar", "bar3")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(keycloak.Group{}, errors.New("create failed")).
@@ -95,7 +95,7 @@ func Test_OrganizationController_Reconcile_Member_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, erMock := prepareTest(t, fooOrg, fooMemb)
-	group := keycloak.NewGroup("foo").WithMembers("bar", "bar3")
+	group := keycloak.NewGroup("foo").WithMemberNames("bar", "bar3")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(keycloak.Group{}, &keycloak.MembershipSyncErrors{

@@ -22,7 +22,7 @@ func Test_TeamController_Reconcile_Success(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, _ := prepareTest(t, barTeam)
-	group := keycloak.NewGroup(barTeam.Namespace, barTeam.Name).WithMembers("baz", "qux")
+	group := keycloak.NewGroup(barTeam.Namespace, barTeam.Name).WithMemberNames("baz", "qux")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(group, nil).
@@ -50,7 +50,7 @@ func Test_TeamController_Reconcile_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, erMock := prepareTest(t, barTeam)
-	group := keycloak.NewGroup(barTeam.Namespace, barTeam.Name).WithMembers("baz", "qux")
+	group := keycloak.NewGroup(barTeam.Namespace, barTeam.Name).WithMemberNames("baz", "qux")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(keycloak.Group{}, errors.New("create failed")).
@@ -83,7 +83,7 @@ func Test_TeamController_Reconcile_Member_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	c, keyMock, erMock := prepareTest(t, barTeam)
-	group := keycloak.NewGroup(barTeam.Namespace, barTeam.Name).WithMembers("baz", "qux")
+	group := keycloak.NewGroup(barTeam.Namespace, barTeam.Name).WithMemberNames("baz", "qux")
 	keyMock.EXPECT().
 		PutGroup(gomock.Any(), group).
 		Return(keycloak.Group{}, &keycloak.MembershipSyncErrors{

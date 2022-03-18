@@ -18,7 +18,7 @@ type Group struct {
 
 	path []string
 
-	Members []string
+	Members []User
 }
 
 // NewGroup creates a new group.
@@ -31,9 +31,13 @@ func NewGroupFromPath(path string) Group {
 	return NewGroup(strings.Split(strings.TrimPrefix(path, "/"), "/")...)
 }
 
-// WithMembers returns a copy of the group with given members added.
-func (g Group) WithMembers(members ...string) Group {
-	g.Members = members
+// WithMemberNames returns a copy of the group with given members added.
+func (g Group) WithMemberNames(members ...string) Group {
+	m := make([]User, len(members))
+	for i := range members {
+		m[i].Username = members[i]
+	}
+	g.Members = m
 	return g
 }
 
@@ -182,7 +186,7 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 	membErr := MembershipSyncErrors{}
 
 	for _, fm := range foundMemb {
-		if !contains(group.Members, *fm.Username) {
+		if !containsUsername(group.Members, *fm.Username) {
 			// user is not in group remove it
 			err := c.Client.DeleteUserFromGroup(ctx, token.AccessToken, c.Realm, *fm.ID, *found.ID)
 			if err != nil {
@@ -194,10 +198,10 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 				continue
 			}
 		} else {
-			res.Members = append(res.Members, *fm.Username)
+			res.Members = append(res.Members, UserFromKeycloakUser(*fm))
 		}
 	}
-	newMemb := diff(group.Members, res.Members)
+	newMemb := diffByUsername(group.Members, res.Members)
 
 	addedMemb, addMembErr := c.addUsersToGroup(ctx, token, *found.ID, newMemb)
 	res.Members = append(res.Members, addedMemb...)
@@ -282,9 +286,9 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 		if err != nil {
 			return res, fmt.Errorf("failed finding groupmembers for group %s: %w", g.BaseName(), err)
 		}
-		res[i].Members = make([]string, len(memb))
+		res[i].Members = make([]User, len(memb))
 		for j, m := range memb {
-			res[i].Members[j] = *m.Username
+			res[i].Members[j] = UserFromKeycloakUser(*m)
 		}
 	}
 
@@ -355,25 +359,25 @@ func (c Client) getGroupAndMembers(ctx context.Context, token *gocloak.JWT, toFi
 
 }
 
-func (c Client) addUsersToGroup(ctx context.Context, token *gocloak.JWT, groupID string, usernames []string) ([]string, *MembershipSyncErrors) {
-	res := []string{}
+func (c Client) addUsersToGroup(ctx context.Context, token *gocloak.JWT, groupID string, users []User) ([]User, *MembershipSyncErrors) {
+	res := make([]User, 0, len(users))
 	errs := MembershipSyncErrors{}
-	for _, uname := range usernames {
-		usr, err := c.getUserByName(ctx, token, uname)
+	for _, user := range users {
+		usr, err := c.getUserByName(ctx, token, user.Username)
 		if err != nil {
 			errs = append(errs, MembershipSyncError{
 				Err:      err,
-				Username: uname,
+				Username: user.Username,
 				Event:    UserAddError,
 			})
 			continue
 		}
 		err = c.Client.AddUserToGroup(ctx, token.AccessToken, c.Realm, *usr.ID, groupID)
 		if err != nil {
-			errs = append(errs, MembershipSyncError{Err: err, Username: uname, Event: UserAddError})
+			errs = append(errs, MembershipSyncError{Err: err, Username: user.Username, Event: UserAddError})
 			continue
 		}
-		res = append(res, uname)
+		res = append(res, user)
 	}
 	if len(errs) > 0 {
 		return res, &errs
@@ -460,9 +464,9 @@ func (c Client) PutUser(ctx context.Context, user User) (User, error) {
 		c.Client.UpdateUser(ctx, token.AccessToken, c.Realm, toUpdate.KeycloakUser())
 }
 
-func contains(s []string, a string) bool {
+func containsUsername(s []User, a string) bool {
 	for _, b := range s {
-		if a == b {
+		if a == b.Username {
 			return true
 		}
 	}
@@ -470,14 +474,14 @@ func contains(s []string, a string) bool {
 }
 
 // diff returns the elements in `a` that aren't in `b`.
-func diff(a, b []string) []string {
+func diffByUsername(a, b []User) []User {
 	mb := map[string]struct{}{}
 	for _, x := range b {
-		mb[x] = struct{}{}
+		mb[x.Username] = struct{}{}
 	}
-	var diff []string
+	var diff []User
 	for _, x := range a {
-		if _, found := mb[x]; !found {
+		if _, found := mb[x.Username]; !found {
 			diff = append(diff, x)
 		}
 	}
