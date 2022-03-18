@@ -123,7 +123,6 @@ type GoCloak interface {
 
 	GetGroupMembers(ctx context.Context, accessToken, realm, groupID string, params gocloak.GetGroupsParams) ([]*gocloak.User, error)
 	GetUsers(ctx context.Context, accessToken, realm string, params gocloak.GetUsersParams) ([]*gocloak.User, error)
-	// GetUserByID(ctx context.Context, accessToken, realm, userID string) (*gocloak.User, error)
 	UpdateUser(ctx context.Context, accessToken, realm string, user gocloak.User) error
 	AddUserToGroup(ctx context.Context, token, realm, userID, groupID string) error
 	DeleteUserFromGroup(ctx context.Context, token, realm, userID, groupID string) error
