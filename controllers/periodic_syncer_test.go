@@ -209,6 +209,10 @@ func Test_Sync_Skip_Existing(t *testing.T) {
 func Test_Sync_Skip_ExistingUsers(t *testing.T) {
 	ctx := context.Background()
 	subject := controlv1.User{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "appuio.io/v1",
+			Kind:       "User",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "existing",
 		},
@@ -242,7 +246,7 @@ func Test_Sync_Skip_ExistingUsers(t *testing.T) {
 
 	updatedSubject := controlv1.User{}
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: subject.Name}, &updatedSubject))
-	assert.Equal(t, subject, subject)
+	assert.Equal(t, subject, updatedSubject)
 }
 
 func Test_Sync_Skip_UserInMultipleGroups(t *testing.T) {
