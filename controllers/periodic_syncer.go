@@ -2,13 +2,11 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	orgv1 "github.com/appuio/control-api/apis/organization/v1"
 	controlv1 "github.com/appuio/control-api/apis/v1"
-	"github.com/vshn/appuio-keycloak-adapter/keycloak"
-
+	"go.uber.org/multierr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +15,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/vshn/appuio-keycloak-adapter/keycloak"
 )
 
 const orgImportAnnot = "keycloak-adapter.vshn.net/importing"
@@ -34,6 +34,7 @@ type PeriodicSyncer struct {
 
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers,verbs=create
 //+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=create
+//+kubebuilder:rbac:groups=appuio.io,resources=users,verbs=create
 //+kubebuilder:rbac:groups=organization.appuio.io;rbac.appuio.io,resources=organizations,verbs=create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=subjects;rolebindings,verbs=get;list;create;update;patch
 
@@ -55,20 +56,57 @@ func (r *PeriodicSyncer) Sync(ctx context.Context) error {
 	for _, g := range gs {
 		org, err := r.syncGroup(ctx, g, orgMap)
 		if err != nil {
-			if groupErr == nil {
-				groupErr = errors.New("")
-			}
 			logger.WithValues("group", g).Error(err, "import of group failed")
 			if org != nil {
 				r.Recorder.Event(org, "Warning", "ImportFailed", err.Error())
 			}
-			groupErr = fmt.Errorf("%w\n%s: %s", groupErr, g.BaseName(), err.Error())
+			groupErr = multierr.Append(groupErr, fmt.Errorf("%w\n%s: %s", groupErr, g.BaseName(), err.Error()))
 		}
 	}
-	if groupErr != nil {
-		return fmt.Errorf("partial sync failure:\n%w", groupErr)
+	userErr := r.createMissingUsers(ctx, gs)
+
+	if err := multierr.Append(groupErr, userErr); err != nil {
+		return fmt.Errorf("partial sync failure:\n%w", err)
 	}
+
 	return nil
+}
+
+func (r *PeriodicSyncer) createMissingUsers(ctx context.Context, groups []keycloak.Group) error {
+	existing, err := r.fetchAPIUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot list Users: %w", err)
+	}
+
+	var createErr error
+	for _, g := range groups {
+		for _, m := range g.Members {
+			if _, exists := existing[m.Username]; exists {
+				continue
+			}
+			err := r.createUser(ctx, m)
+			if err != nil {
+				createErr = multierr.Append(createErr, err)
+				continue
+			}
+			existing[m.Username] = struct{}{}
+		}
+	}
+
+	return createErr
+}
+
+func (r *PeriodicSyncer) createUser(ctx context.Context, m keycloak.User) error {
+	return r.Create(ctx, &controlv1.User{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: m.Username,
+		},
+		Spec: controlv1.UserSpec{
+			Preferences: controlv1.UserPreferences{
+				DefaultOrganizationRef: m.DefaultOrganizationRef,
+			},
+		},
+	})
 }
 
 func (r *PeriodicSyncer) syncGroup(ctx context.Context, g keycloak.Group, orgMap map[string]*orgv1.Organization) (runtime.Object, error) {
@@ -152,7 +190,21 @@ func (r *PeriodicSyncer) fetchOrganizationMap(ctx context.Context) (map[string]*
 	return orgMap, nil
 }
 
-func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string, members []string) (*controlv1.Team, error) {
+func (r *PeriodicSyncer) fetchAPIUsers(ctx context.Context) (map[string]struct{}, error) {
+	users := controlv1.UserList{}
+	err := r.List(ctx, &users)
+	if err != nil {
+		return nil, err
+	}
+
+	userMap := map[string]struct{}{}
+	for _, u := range users.Items {
+		userMap[u.Name] = struct{}{}
+	}
+	return userMap, nil
+}
+
+func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string, members []keycloak.User) (*controlv1.Team, error) {
 	team := &controlv1.Team{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -165,7 +217,7 @@ func (r *PeriodicSyncer) createTeam(ctx context.Context, namespace, name string,
 
 	team.Spec.UserRefs = make([]controlv1.UserRef, len(members))
 	for i, m := range members {
-		team.Spec.UserRefs[i] = controlv1.UserRef{Name: m}
+		team.Spec.UserRefs[i] = controlv1.UserRef{Name: m.Username}
 	}
 	err := r.Create(ctx, team)
 	return team, err
@@ -204,7 +256,7 @@ func (r *PeriodicSyncer) updateOrganizationMembersFromGroup(ctx context.Context,
 	}
 	orgMemb.Spec.UserRefs = make([]controlv1.UserRef, len(group.Members))
 	for i, m := range group.Members {
-		orgMemb.Spec.UserRefs[i] = controlv1.UserRef{Name: m}
+		orgMemb.Spec.UserRefs[i] = controlv1.UserRef{Name: m.Username}
 	}
 	return r.Update(ctx, &orgMemb)
 }
@@ -215,7 +267,7 @@ func (r *PeriodicSyncer) setRolebindingsFromGroup(ctx context.Context, group key
 		subjects = append(subjects, rbacv1.Subject{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     m,
+			Name:     m.Username,
 		})
 	}
 

@@ -63,6 +63,25 @@ rules:
   - patch
   - update
 - apiGroups:
+  - appuio.io
+  resources:
+  - users
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - appuio.io
+  resources:
+  - users/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - organization.appuio.io
   - rbac.appuio.io
   resources:

@@ -34,6 +34,8 @@ type KeycloakClient interface {
 	PutGroup(ctx context.Context, group keycloak.Group) (keycloak.Group, error)
 	DeleteGroup(ctx context.Context, path ...string) error
 	ListGroups(ctx context.Context) ([]keycloak.Group, error)
+
+	PutUser(ctx context.Context, user keycloak.User) (keycloak.User, error)
 }
 
 var orgFinalizer = "keycloak-adapter.vshn.net/finalizer"
@@ -151,7 +153,7 @@ func (r *OrganizationReconciler) updateOrganizationStatus(ctx context.Context, o
 	userRefs := make([]controlv1.UserRef, 0, len(group.Members))
 	for _, u := range group.Members {
 		userRefs = append(userRefs, controlv1.UserRef{
-			Name: u,
+			Name: u.Username,
 		})
 	}
 	memb.Status.ResolvedUserRefs = userRefs
@@ -165,7 +167,7 @@ func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMem
 		groupMem = append(groupMem, u.Name)
 	}
 
-	return keycloak.NewGroup(org.Name).WithMembers(groupMem...)
+	return keycloak.NewGroup(org.Name).WithMemberNames(groupMem...)
 }
 
 // SetupWithManager sets up the controller with the Manager.

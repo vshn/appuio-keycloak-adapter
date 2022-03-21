@@ -60,8 +60,8 @@ func TestListGroups_simple(t *testing.T) {
 	assert.Len(t, res[2].Members, 2)
 	assert.Len(t, res[3].Members, 3)
 
-	assert.Equal(t, "user-1", res[1].Members[0])
-	assert.Equal(t, "user-2", res[2].Members[1])
+	assert.Equal(t, "user-1", res[1].Members[0].Username)
+	assert.Equal(t, "user-2", res[2].Members[1].Username)
 }
 
 func TestListGroups_RootGroup(t *testing.T) {
