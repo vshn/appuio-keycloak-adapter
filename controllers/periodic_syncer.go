@@ -29,7 +29,8 @@ type PeriodicSyncer struct {
 	Keycloak KeycloakClient
 
 	// SyncClusterRoles to give to group members when importing
-	SyncClusterRoles []string
+	SyncClusterRoles           []string
+	SyncClusterRolesUserPrefix string
 }
 
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers,verbs=create
@@ -267,7 +268,7 @@ func (r *PeriodicSyncer) setRolebindingsFromGroup(ctx context.Context, group key
 		subjects = append(subjects, rbacv1.Subject{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     m.Username,
+			Name:     r.SyncClusterRolesUserPrefix + m.Username,
 		})
 	}
 

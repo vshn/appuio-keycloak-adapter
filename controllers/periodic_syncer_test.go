@@ -61,10 +61,11 @@ func Test_Sync_Success(t *testing.T) {
 		Times(1)
 
 	err := (&PeriodicSyncer{
-		Client:           c,
-		Recorder:         erMock,
-		Keycloak:         keyMock,
-		SyncClusterRoles: []string{"import-role", "existing-role"},
+		Client:                     c,
+		Recorder:                   erMock,
+		Keycloak:                   keyMock,
+		SyncClusterRoles:           []string{"import-role", "existing-role"},
+		SyncClusterRolesUserPrefix: "appuio#",
 	}).Sync(ctx)
 	require.NoError(t, err)
 
@@ -83,12 +84,12 @@ func Test_Sync_Success(t *testing.T) {
 		{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     "bar3",
+			Name:     "appuio#bar3",
 		},
 		{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     "bar",
+			Name:     "appuio#bar",
 		},
 	}, rb.Subjects, "create new role")
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: "existing-role", Namespace: "bar"}, &rb))
@@ -96,12 +97,12 @@ func Test_Sync_Success(t *testing.T) {
 		{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     "bar3",
+			Name:     "appuio#bar3",
 		},
 		{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     "bar",
+			Name:     "appuio#bar",
 		},
 	}, rb.Subjects, "update exiting role")
 
