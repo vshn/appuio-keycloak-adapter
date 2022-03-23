@@ -115,8 +115,4 @@ rules:
   - rolebindings
   - subjects
   verbs:
-  - create
-  - get
-  - list
-  - patch
-  - update
+  - '*'
