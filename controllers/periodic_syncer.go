@@ -29,14 +29,15 @@ type PeriodicSyncer struct {
 	Keycloak KeycloakClient
 
 	// SyncClusterRoles to give to group members when importing
-	SyncClusterRoles []string
+	SyncClusterRoles           []string
+	SyncClusterRolesUserPrefix string
 }
 
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers,verbs=create
 //+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=create
 //+kubebuilder:rbac:groups=appuio.io,resources=users,verbs=create
 //+kubebuilder:rbac:groups=organization.appuio.io;rbac.appuio.io,resources=organizations,verbs=create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=subjects;rolebindings,verbs=get;list;create;update;patch
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=subjects;rolebindings,verbs=*
 
 // Sync lists all Keycloak groups in the realm and creates corresponding Organizations if they do not exist
 func (r *PeriodicSyncer) Sync(ctx context.Context) error {
@@ -267,7 +268,7 @@ func (r *PeriodicSyncer) setRolebindingsFromGroup(ctx context.Context, group key
 		subjects = append(subjects, rbacv1.Subject{
 			Kind:     rbacv1.UserKind,
 			APIGroup: rbacv1.GroupName,
-			Name:     m.Username,
+			Name:     r.SyncClusterRolesUserPrefix + m.Username,
 		})
 	}
 

@@ -67,6 +67,7 @@ func main() {
 	crontab := flag.String("sync-schedule", "@every 5m", "A cron style schedule for the organization synchronization interval.")
 	timeout := flag.Duration("sync-timeout", 10*time.Second, "The timeout for a single synchronization run.")
 	syncRoles := flag.String("sync-roles", "", "A comma separated list of cluster roles to bind to users when importing a new organization.")
+	syncRolesUserPrefix := flag.String("sync-roles-user-prefix", "appuio#", "A prefix given to the users when assigning cluster roles from `sync-roles`.")
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
@@ -87,6 +88,7 @@ func main() {
 	mgr, or, err := setupManager(
 		kc,
 		roles,
+		*syncRolesUserPrefix,
 		ctrl.Options{
 			Scheme:                 scheme,
 			MetricsBindAddress:     *metricsAddr,
@@ -116,7 +118,7 @@ func main() {
 	<-c.Stop().Done()
 }
 
-func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Options) (ctrl.Manager, *controllers.PeriodicSyncer, error) {
+func setupManager(kc controllers.KeycloakClient, syncRoles []string, syncRolesUserPrefix string, opt ctrl.Options) (ctrl.Manager, *controllers.PeriodicSyncer, error) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), opt)
 	if err != nil {
 		return nil, nil, err
@@ -151,10 +153,11 @@ func setupManager(kc controllers.KeycloakClient, syncRoles []string, opt ctrl.Op
 	//+kubebuilder:scaffold:builder
 
 	ps := &controllers.PeriodicSyncer{
-		Client:           mgr.GetClient(),
-		Recorder:         mgr.GetEventRecorderFor("keycloak-adapter"),
-		Keycloak:         kc,
-		SyncClusterRoles: syncRoles,
+		Client:                     mgr.GetClient(),
+		Recorder:                   mgr.GetEventRecorderFor("keycloak-adapter"),
+		Keycloak:                   kc,
+		SyncClusterRoles:           syncRoles,
+		SyncClusterRolesUserPrefix: syncRolesUserPrefix,
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
