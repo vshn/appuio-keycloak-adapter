@@ -61,54 +61,30 @@ func (u User) DisplayName() string {
 	return u.FirstName + " " + u.LastName
 }
 
-// KeycloakUser returns a gocloak.User with attributes set from this user
-func (u User) KeycloakUser() gocloak.User {
-	r := gocloak.User{}
+// ApplyTo sets attributes from this user to the given gocloak.User
+func (u User) ApplyTo(tu *gocloak.User) {
 	if u.ID != "" {
-		r.ID = &u.ID
+		tu.ID = &u.ID
 	}
 	if u.Username != "" {
-		r.Username = &u.Username
+		tu.Username = &u.Username
 	}
 	if u.Email != "" {
-		r.Email = &u.Email
+		tu.Email = &u.Email
 	}
 	if u.FirstName != "" {
-		r.FirstName = &u.FirstName
+		tu.FirstName = &u.FirstName
 	}
 	if u.LastName != "" {
-		r.LastName = &u.LastName
+		tu.LastName = &u.LastName
 	}
 
 	if u.DefaultOrganizationRef != "" {
-		attr := make(map[string][]string)
-		attr[KeycloakDefaultOrganizationRef] = []string{u.DefaultOrganizationRef}
-		r.Attributes = &attr
-	}
+		if tu.Attributes == nil {
+			attr := make(map[string][]string)
+			tu.Attributes = &attr
+		}
 
-	return r
-}
-
-func (u User) overlay(uo User) User {
-	r := u
-	if uo.ID != "" {
-		r.ID = uo.ID
+		(*tu.Attributes)[KeycloakDefaultOrganizationRef] = []string{u.DefaultOrganizationRef}
 	}
-	if uo.Username != "" {
-		r.Username = uo.Username
-	}
-	if uo.Email != "" {
-		r.Email = uo.Email
-	}
-	if uo.FirstName != "" {
-		r.FirstName = uo.FirstName
-	}
-	if uo.LastName != "" {
-		r.LastName = uo.LastName
-	}
-
-	if uo.DefaultOrganizationRef != "" {
-		r.DefaultOrganizationRef = uo.DefaultOrganizationRef
-	}
-	return r
 }
