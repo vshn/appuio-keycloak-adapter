@@ -453,10 +453,9 @@ func (c Client) PutUser(ctx context.Context, user User) (User, error) {
 		return User{}, fmt.Errorf("failed querying keycloak for user %q: %w", user.Username, err)
 	}
 
-	toUpdate := user
-	toUpdate.ID = *kcUser.ID
-	return UserFromKeycloakUser(*kcUser).overlay(toUpdate),
-		c.Client.UpdateUser(ctx, token.AccessToken, c.Realm, toUpdate.KeycloakUser())
+	user.ApplyTo(kcUser)
+	return UserFromKeycloakUser(*kcUser),
+		c.Client.UpdateUser(ctx, token.AccessToken, c.Realm, *kcUser)
 }
 
 func containsUsername(s []User, a string) bool {

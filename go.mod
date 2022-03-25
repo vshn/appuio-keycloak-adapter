@@ -1,6 +1,6 @@
 module github.com/vshn/appuio-keycloak-adapter
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Nerzal/gocloak/v11 v11.0.2
