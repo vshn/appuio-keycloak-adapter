@@ -15,10 +15,11 @@ func mockLogin(mgc *MockGoCloak, c Client) {
 		Return(&gocloak.JWT{
 			SessionState: "session",
 			AccessToken:  "token",
+			RefreshToken: "refresh",
 		}, nil).
 		AnyTimes()
 	mgc.EXPECT().
-		LogoutUserSession(gomock.Any(), "token", c.Realm, "session").
+		LogoutPublicClient(gomock.Any(), "admin-cli", c.Realm, "token", "refresh").
 		Return(nil).
 		AnyTimes()
 }
