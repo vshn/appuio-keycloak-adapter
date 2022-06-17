@@ -26,10 +26,11 @@ func TestLogin(t *testing.T) {
 		Return(&gocloak.JWT{
 			SessionState: "session",
 			AccessToken:  "token",
+			RefreshToken: "refresh",
 		}, nil).
 		AnyTimes()
 	mKeycloak.EXPECT().
-		LogoutUserSession(gomock.Any(), "token", "target-realm", "session").
+		LogoutPublicClient(gomock.Any(), "admin-cli", "target-realm", "token", "refresh").
 		Return(nil).
 		AnyTimes()
 
@@ -55,10 +56,11 @@ func TestLogin_WithLoginRealm(t *testing.T) {
 		Return(&gocloak.JWT{
 			SessionState: "session",
 			AccessToken:  "token",
+			RefreshToken: "refresh",
 		}, nil).
 		AnyTimes()
 	mKeycloak.EXPECT().
-		LogoutUserSession(gomock.Any(), "token", "login-realm", "session").
+		LogoutPublicClient(gomock.Any(), "admin-cli", "login-realm", "token", "refresh").
 		Return(nil).
 		AnyTimes()
 

@@ -114,7 +114,7 @@ func (errs *MembershipSyncErrors) Error() string {
 // This keeps the mock at a more reasonable size
 type GoCloak interface {
 	LoginAdmin(ctx context.Context, username, password, realm string) (*gocloak.JWT, error)
-	LogoutUserSession(ctx context.Context, accessToken, realm, session string) error
+	LogoutPublicClient(ctx context.Context, clientID, realm, accessToken, refreshToken string) error
 
 	CreateGroup(ctx context.Context, accessToken, realm string, group gocloak.Group) (string, error)
 	CreateChildGroup(ctx context.Context, accessToken, realm, groupID string, group gocloak.Group) (string, error)
@@ -302,7 +302,8 @@ func (c Client) login(ctx context.Context) (*gocloak.JWT, error) {
 }
 
 func (c Client) logout(ctx context.Context, token *gocloak.JWT) error {
-	return c.Client.LogoutUserSession(ctx, token.AccessToken, c.loginRealm(), token.SessionState)
+	// `admin-cli` is the client used when authenticating to the admin API
+	return c.Client.LogoutPublicClient(ctx, "admin-cli", c.loginRealm(), token.AccessToken, token.RefreshToken)
 }
 
 func (c Client) getGroup(ctx context.Context, token *gocloak.JWT, toSearch Group) (*gocloak.Group, error) {
