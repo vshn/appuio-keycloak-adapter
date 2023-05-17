@@ -110,6 +110,12 @@ rules:
   - patch
   - update
 - apiGroups:
+  - rbac.appuio.io
+  resources:
+  - users
+  verbs:
+  - create
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings

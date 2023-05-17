@@ -36,6 +36,9 @@ type PeriodicSyncer struct {
 //+kubebuilder:rbac:groups=appuio.io,resources=organizationmembers,verbs=create
 //+kubebuilder:rbac:groups=appuio.io,resources=teams,verbs=create
 //+kubebuilder:rbac:groups=appuio.io,resources=users,verbs=create
+// Allows managing other users than the one used by the controller itself
+// See https://github.com/appuio/control-api/pull/163
+//+kubebuilder:rbac:groups=rbac.appuio.io,resources=users,verbs=create
 //+kubebuilder:rbac:groups=organization.appuio.io;rbac.appuio.io,resources=organizations,verbs=create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=subjects;rolebindings,verbs=*
 
