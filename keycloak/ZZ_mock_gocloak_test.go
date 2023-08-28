@@ -181,6 +181,20 @@ func (mr *MockGoCloakMockRecorder) LogoutPublicClient(ctx, clientID, realm, acce
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogoutPublicClient", reflect.TypeOf((*MockGoCloak)(nil).LogoutPublicClient), ctx, clientID, realm, accessToken, refreshToken)
 }
 
+// UpdateGroup mocks base method.
+func (m *MockGoCloak) UpdateGroup(ctx context.Context, accessToken, realm string, updatedGroup gocloak.Group) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateGroup", ctx, accessToken, realm, updatedGroup)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateGroup indicates an expected call of UpdateGroup.
+func (mr *MockGoCloakMockRecorder) UpdateGroup(ctx, accessToken, realm, updatedGroup interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateGroup", reflect.TypeOf((*MockGoCloak)(nil).UpdateGroup), ctx, accessToken, realm, updatedGroup)
+}
+
 // UpdateUser mocks base method.
 func (m *MockGoCloak) UpdateUser(ctx context.Context, accessToken, realm string, user gocloak.User) error {
 	m.ctrl.T.Helper()

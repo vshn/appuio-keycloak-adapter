@@ -27,7 +27,8 @@ func mockLogin(mgc *MockGoCloak, c Client) {
 func mockListGroups(mgc *MockGoCloak, c Client, groups []*gocloak.Group) {
 	mgc.EXPECT().
 		GetGroups(gomock.Any(), "token", c.Realm, gocloak.GetGroupsParams{
-			Max: gocloak.IntP(-1),
+			Max:                 gocloak.IntP(-1),
+			BriefRepresentation: gocloak.BoolP(false),
 		}).
 		Return(groups, nil).
 		Times(1)
@@ -43,20 +44,34 @@ func mockGetGroups(mgc *MockGoCloak, c Client, groupName string, groups []*goclo
 		Times(1)
 }
 
-func mockCreateGroup(mgc *MockGoCloak, c Client, groupName, groupPath, groupID string) {
+func mockCreateGroup(mgc *MockGoCloak, c Client, groupName, groupDisplayName, groupPath, groupID string) {
+	var attributes *map[string][]string
+	if groupDisplayName != "" {
+		attrMap := make(map[string][]string)
+		attrMap["displayName"] = []string{groupDisplayName}
+		attributes = &attrMap
+	}
 	kcg := gocloak.Group{
-		Name: &groupName,
-		Path: &groupPath,
+		Name:       &groupName,
+		Path:       &groupPath,
+		Attributes: attributes,
 	}
 	mgc.EXPECT().
 		CreateGroup(gomock.Any(), "token", c.Realm, kcg).
 		Return(groupID, nil).
 		Times(1)
 }
-func mockCreateChildGroup(mgc *MockGoCloak, c Client, parentID, groupName, groupPath, groupID string) {
+func mockCreateChildGroup(mgc *MockGoCloak, c Client, parentID, groupName, groupDisplayName, groupPath, groupID string) {
+	var attributes *map[string][]string
+	if groupDisplayName != "" {
+		attrMap := make(map[string][]string)
+		attrMap["displayName"] = []string{groupDisplayName}
+		attributes = &attrMap
+	}
 	kcg := gocloak.Group{
-		Name: &groupName,
-		Path: &groupPath,
+		Name:       &groupName,
+		Path:       &groupPath,
+		Attributes: attributes,
 	}
 	mgc.EXPECT().
 		CreateChildGroup(gomock.Any(), "token", c.Realm, parentID, kcg).
@@ -116,13 +131,20 @@ func mockUpdateUser(mgc *MockGoCloak, c Client, user gocloak.User) {
 		Times(1)
 }
 
-func newGocloakGroup(id string, path ...string) *gocloak.Group {
+func newGocloakGroup(displayName string, id string, path ...string) *gocloak.Group {
 	if len(path) == 0 {
 		panic("group must have at least one element in path")
 	}
+	var attributes *map[string][]string
+	if displayName != "" {
+		attrMap := make(map[string][]string)
+		attrMap["displayName"] = []string{displayName}
+		attributes = &attrMap
+	}
 	return &gocloak.Group{
-		ID:   &id,
-		Name: gocloak.StringP(path[len(path)-1]),
-		Path: gocloak.StringP("/" + strings.Join(path, "/")),
+		ID:         &id,
+		Name:       gocloak.StringP(path[len(path)-1]),
+		Path:       gocloak.StringP("/" + strings.Join(path, "/")),
+		Attributes: attributes,
 	}
 }

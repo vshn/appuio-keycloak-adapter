@@ -45,12 +45,12 @@ func Test_Sync_Success(t *testing.T) {
 		},
 	)
 
-	barOrg := keycloak.NewGroup("bar")
+	barOrg := keycloak.NewGroup("Bar Inc.", "bar")
 	barOrg.Members = []keycloak.User{
 		{Username: "bar", DefaultOrganizationRef: "bar"},
 		{Username: "bar3", DefaultOrganizationRef: "bar-mss"},
 	}
-	barTeam := keycloak.NewGroup("bar", "bar-team")
+	barTeam := keycloak.NewGroup("Bar Team", "bar", "bar-team")
 	barTeam.Members = []keycloak.User{
 		{Username: "bar-tm-1"},
 		{Username: "bar-tm-2", DefaultOrganizationRef: "bar-outsourcing"},
@@ -135,8 +135,8 @@ func Test_Sync_Fail_Update(t *testing.T) {
 	// By not adding buzzMember manually we simulate an error while updating the members resource
 
 	groups := []keycloak.Group{
-		keycloak.NewGroup("buzz").WithMemberNames("buzz1", "buzz"),
-		keycloak.NewGroup("bar").WithMemberNames("bar", "bar3"),
+		keycloak.NewGroup("Buzz Inc.", "buzz").WithMemberNames("buzz1", "buzz"),
+		keycloak.NewGroup("Bar Inc.", "bar").WithMemberNames("bar", "bar3"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
@@ -175,8 +175,8 @@ func Test_Sync_Skip_Existing(t *testing.T) {
 	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb, barTeam) // We need to add barMember manually as there is no control API in the tests creating them
 
 	groups := []keycloak.Group{
-		keycloak.NewGroup("foo").WithMemberNames("foo", "foo2"),
-		keycloak.NewGroup("foo", "bar").WithMemberNames("updated-member-1", "updated-member-2"),
+		keycloak.NewGroup("Foo Inc.", "foo").WithMemberNames("foo", "foo2"),
+		keycloak.NewGroup("Foo Inc. Bar Team", "foo", "bar").WithMemberNames("updated-member-1", "updated-member-2"),
 	}
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
@@ -226,7 +226,7 @@ func Test_Sync_Skip_ExistingUsers(t *testing.T) {
 
 	c, keyMock, _ := prepareTest(t, fooOrg, fooMemb, &subject)
 
-	fooGroup := keycloak.NewGroup("foo")
+	fooGroup := keycloak.NewGroup("Foo Inc.", "foo")
 	fooGroup.Members = []keycloak.User{
 		{
 			Username:               subject.Name,
@@ -257,8 +257,8 @@ func Test_Sync_Skip_UserInMultipleGroups(t *testing.T) {
 	keyMock.EXPECT().
 		ListGroups(gomock.Any()).
 		Return([]keycloak.Group{
-			keycloak.NewGroup("foo").WithMemberNames("in-multiple-groups"),
-			keycloak.NewGroup("foo", "bar").WithMemberNames("in-multiple-groups"),
+			keycloak.NewGroup("Foo Inc.", "foo").WithMemberNames("in-multiple-groups"),
+			keycloak.NewGroup("Foo Inc. Bar Team", "foo", "bar").WithMemberNames("in-multiple-groups"),
 		}, nil).
 		Times(1)
 

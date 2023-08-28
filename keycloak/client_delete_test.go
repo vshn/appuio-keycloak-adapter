@@ -27,7 +27,7 @@ func TestDeleteGroup_simple(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			newGocloakGroup("foo-id", "foo-gmbh"),
+			newGocloakGroup("Foo Inc.", "foo-id", "foo-gmbh"),
 		})
 	mockDeleteGroup(mKeycloak, c, "foo-id")
 
@@ -47,7 +47,7 @@ func TestDeleteGroup_RootGroup(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			newGocloakGroup("foo-id", "root-group", "foo-gmbh"),
+			newGocloakGroup("Foo Inc.", "foo-id", "root-group", "foo-gmbh"),
 		})
 	mockDeleteGroup(mKeycloak, c, "foo-id")
 
@@ -69,7 +69,7 @@ func TestDeleteGroup_subgroup(t *testing.T) {
 	mockLogin(mKeycloak, c)
 	mockGetGroups(mKeycloak, c, "foo-gmbh",
 		[]*gocloak.Group{
-			newGocloakGroup("foo-id", "parent", "foo-gmbh"),
+			newGocloakGroup("Foo Inc.", "foo-id", "parent", "foo-gmbh"),
 		})
 	mockDeleteGroup(mKeycloak, c, "foo-id")
 

@@ -25,11 +25,11 @@ func TestListGroups_simple(t *testing.T) {
 	}
 
 	gs := []*gocloak.Group{
-		newGocloakGroup("foo-id", "foo-gmbh"),
-		newGocloakGroup("bar-id", "bar-gmbh"),
+		newGocloakGroup("Foo Inc.", "foo-id", "foo-gmbh"),
+		newGocloakGroup("Bar Inc.", "bar-id", "bar-gmbh"),
 		func() *gocloak.Group {
-			g := newGocloakGroup("parent-id", "parent-gmbh")
-			g.SubGroups = &[]gocloak.Group{*newGocloakGroup("qux-id", "parent-gmbh", "qux-team")}
+			g := newGocloakGroup("", "parent-id", "parent-gmbh")
+			g.SubGroups = &[]gocloak.Group{*newGocloakGroup("Parent GmbH", "qux-id", "parent-gmbh", "qux-team")}
 			return g
 		}(),
 	}
@@ -75,13 +75,13 @@ func TestListGroups_RootGroup(t *testing.T) {
 	}
 
 	gs := []*gocloak.Group{
-		newGocloakGroup("foo-id", "foo-gmbh"),
+		newGocloakGroup("Foo Inc.", "foo-id", "foo-gmbh"),
 		func() *gocloak.Group {
-			g := newGocloakGroup("root-group-id", "root-group")
+			g := newGocloakGroup("", "root-group-id", "root-group")
 			g.SubGroups = &[]gocloak.Group{
 				func() gocloak.Group {
-					g := *newGocloakGroup("foo-gmbh-id", "root-group", "foo-gmbh")
-					g.SubGroups = &[]gocloak.Group{*newGocloakGroup("foo-team-id", "root-group", "foo-gmbh", "foo-team")}
+					g := *newGocloakGroup("Foo Inc.", "foo-gmbh-id", "root-group", "foo-gmbh")
+					g.SubGroups = &[]gocloak.Group{*newGocloakGroup("Foo Team", "foo-team-id", "root-group", "foo-gmbh", "foo-team")}
 					return g
 				}()}
 			return g
@@ -112,8 +112,8 @@ func TestListGroups_RootGroup_no_groups_under_root(t *testing.T) {
 	}
 
 	gs := []*gocloak.Group{
-		newGocloakGroup("foo-id", "foo-gmbh"),
-		newGocloakGroup("root-group-id", "root-group"),
+		newGocloakGroup("Foo Inc.", "foo-id", "foo-gmbh"),
+		newGocloakGroup("", "root-group-id", "root-group"),
 	}
 	mockLogin(mKeycloak, c)
 	mockListGroups(mKeycloak, c, gs)
@@ -134,7 +134,7 @@ func TestListGroups_RootGroup_RootNotFound(t *testing.T) {
 	}
 
 	gs := []*gocloak.Group{
-		newGocloakGroup("foo-id", "foo-gmbh"),
+		newGocloakGroup("Foo Inc.", "foo-id", "foo-gmbh"),
 	}
 	mockLogin(mKeycloak, c)
 	mockListGroups(mKeycloak, c, gs)
