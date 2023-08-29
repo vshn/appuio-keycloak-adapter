@@ -167,7 +167,7 @@ func buildKeycloakGroup(org *orgv1.Organization, memb *controlv1.OrganizationMem
 		groupMem = append(groupMem, u.Name)
 	}
 
-	return keycloak.NewGroup(org.Name).WithMemberNames(groupMem...)
+	return keycloak.NewGroup(org.Spec.DisplayName, org.Name).WithMemberNames(groupMem...)
 }
 
 // SetupWithManager sets up the controller with the Manager.

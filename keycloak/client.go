@@ -15,16 +15,18 @@ type Group struct {
 	path []string
 
 	Members []User
+
+	displayName string
 }
 
 // NewGroup creates a new group.
-func NewGroup(path ...string) Group {
-	return Group{path: path}
+func NewGroup(displayName string, path ...string) Group {
+	return Group{path: path, displayName: displayName}
 }
 
 // NewGroupFromPath creates a new group.
-func NewGroupFromPath(path string) Group {
-	return NewGroup(strings.Split(strings.TrimPrefix(path, "/"), "/")...)
+func NewGroupFromPath(displayName string, path string) Group {
+	return NewGroup(displayName, strings.Split(strings.TrimPrefix(path, "/"), "/")...)
 }
 
 // WithMemberNames returns a copy of the group with given members added.
@@ -119,6 +121,7 @@ type GoCloak interface {
 	CreateGroup(ctx context.Context, accessToken, realm string, group gocloak.Group) (string, error)
 	CreateChildGroup(ctx context.Context, accessToken, realm, groupID string, group gocloak.Group) (string, error)
 	GetGroups(ctx context.Context, accessToken, realm string, params gocloak.GetGroupsParams) ([]*gocloak.Group, error)
+	UpdateGroup(ctx context.Context, accessToken, realm string, updatedGroup gocloak.Group) error
 	DeleteGroup(ctx context.Context, accessToken, realm, groupID string) error
 
 	GetGroupMembers(ctx context.Context, accessToken, realm, groupID string, params gocloak.GetGroupsParams) ([]*gocloak.User, error)
@@ -157,7 +160,7 @@ func NewClient(host, realm, username, password string) Client {
 // PutGroup creates the provided Keycloak group if it does not exist and adjusts the group members accordingly.
 // The method is idempotent.
 func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
-	res := NewGroup(group.path...)
+	res := NewGroup(group.displayName, group.path...)
 	group = c.prependRoot(group)
 
 	token, err := c.login(ctx)
@@ -176,6 +179,14 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 			return res, err
 		}
 		found = &created
+	} else {
+		if getDisplayNameOfGroup(found) != group.displayName {
+			found.Attributes = setDisplayName(found.Attributes, group.displayName)
+			err := c.updateGroup(ctx, token, *found)
+			if err != nil {
+				return res, err
+			}
+		}
 	}
 
 	membErr := MembershipSyncErrors{}
@@ -212,8 +223,9 @@ func (c Client) PutGroup(ctx context.Context, group Group) (Group, error) {
 
 func (c Client) createGroup(ctx context.Context, token *gocloak.JWT, group Group) (gocloak.Group, error) {
 	toCreate := gocloak.Group{
-		Name: gocloak.StringP(group.BaseName()),
-		Path: gocloak.StringP(group.Path()),
+		Name:       gocloak.StringP(group.BaseName()),
+		Path:       gocloak.StringP(group.Path()),
+		Attributes: setDisplayName(nil, group.displayName),
 	}
 
 	if len(group.PathMembers()) == 1 {
@@ -223,7 +235,7 @@ func (c Client) createGroup(ctx context.Context, token *gocloak.JWT, group Group
 	}
 
 	p := group.PathMembers()
-	parent, err := c.getGroup(ctx, token, NewGroup(p[0:len(p)-1]...))
+	parent, err := c.getGroup(ctx, token, NewGroup(group.displayName, p[0:len(p)-1]...))
 	if err != nil {
 		return toCreate, fmt.Errorf("error finding parent group for %v: %w", group, err)
 	}
@@ -236,6 +248,11 @@ func (c Client) createGroup(ctx context.Context, token *gocloak.JWT, group Group
 	return toCreate, err
 }
 
+func (c Client) updateGroup(ctx context.Context, token *gocloak.JWT, group gocloak.Group) error {
+	err := c.Client.UpdateGroup(ctx, token.AccessToken, c.Realm, group)
+	return err
+}
+
 // DeleteGroup deletes the Keycloak group by name.
 // The method is idempotent and will not do anything if the group does not exits.
 func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
@@ -245,7 +262,7 @@ func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
 	}
 	defer c.logout(ctx, token)
 
-	found, err := c.getGroup(ctx, token, c.prependRoot(NewGroup(path...)))
+	found, err := c.getGroup(ctx, token, c.prependRoot(NewGroup("", path...)))
 	if err != nil {
 		return fmt.Errorf("failed finding group: %w", err)
 	}
@@ -488,7 +505,7 @@ func flatGroups(gcp []gocloak.Group) []Group {
 	var flatten func([]gocloak.Group)
 	flatten = func(groups []gocloak.Group) {
 		for _, g := range groups {
-			group := NewGroupFromPath(*g.Path)
+			group := NewGroupFromPath(getDisplayNameOfGroup(&g), *g.Path)
 			group.id = *g.ID
 			flat = append(flat, group)
 			if g.SubGroups != nil {
@@ -501,6 +518,30 @@ func flatGroups(gcp []gocloak.Group) []Group {
 	return flat
 }
 
+func getDisplayNameOfGroup(group *gocloak.Group) string {
+	if group.Attributes != nil {
+		displayNames, ok := (*group.Attributes)["displayName"]
+		if ok && len(displayNames) > 0 {
+			return displayNames[0]
+		}
+	}
+	return ""
+}
+
+func setDisplayName(attributes *map[string][]string, displayName string) *map[string][]string {
+	if attributes == nil {
+		attrMap := make(map[string][]string)
+		attributes = &attrMap
+	}
+	if displayName == "" {
+		delete(*attributes, "displayName")
+	} else {
+		(*attributes)["displayName"] = []string{displayName}
+	}
+	return attributes
+}
+
 var defaultParams = gocloak.GetGroupsParams{
-	Max: gocloak.IntP(-1),
+	Max:                 gocloak.IntP(-1),
+	BriefRepresentation: gocloak.BoolP(false), // required in order to get attributes when listing groups
 }
