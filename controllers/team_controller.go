@@ -110,7 +110,7 @@ func buildTeamKeycloakGroup(team *controlv1.Team) keycloak.Group {
 		groupMem = append(groupMem, u.Name)
 	}
 
-	return keycloak.NewGroup(team.Namespace, team.Name).WithMemberNames(groupMem...)
+	return keycloak.NewGroup(team.Spec.DisplayName, team.Namespace, team.Name).WithMemberNames(groupMem...)
 }
 
 // SetupWithManager sets up the controller with the Manager.
