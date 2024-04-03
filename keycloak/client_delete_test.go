@@ -5,7 +5,7 @@ import (
 
 	"testing"
 
-	gocloak "github.com/Nerzal/gocloak/v11"
+	gocloak "github.com/Nerzal/gocloak/v13"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/vshn/appuio-keycloak-adapter/keycloak"

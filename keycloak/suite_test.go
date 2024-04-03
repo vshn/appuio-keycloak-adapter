@@ -5,7 +5,7 @@ import (
 
 	. "github.com/vshn/appuio-keycloak-adapter/keycloak"
 
-	gocloak "github.com/Nerzal/gocloak/v11"
+	gocloak "github.com/Nerzal/gocloak/v13"
 	gomock "github.com/golang/mock/gomock"
 )
 

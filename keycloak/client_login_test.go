@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	gocloak "github.com/Nerzal/gocloak/v11"
+	gocloak "github.com/Nerzal/gocloak/v13"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
