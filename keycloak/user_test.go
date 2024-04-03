@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Nerzal/gocloak/v11"
+	"github.com/Nerzal/gocloak/v13"
 	"github.com/stretchr/testify/require"
 )
 

@@ -3,7 +3,6 @@ module github.com/vshn/appuio-keycloak-adapter
 go 1.20
 
 require (
-	github.com/Nerzal/gocloak/v11 v11.2.0
 	github.com/Nerzal/gocloak/v13 v13.9.0
 	github.com/appuio/control-api v0.33.0
 	github.com/golang/mock v1.6.0
@@ -19,6 +18,7 @@ require (
 require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/safetext v0.0.0-20230106111101-7156a760e523 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -43,7 +43,6 @@ require (
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/gobuffalo/flect v1.0.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect

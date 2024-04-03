@@ -1,6 +1,6 @@
 package keycloak
 
-import "github.com/Nerzal/gocloak/v11"
+import "github.com/Nerzal/gocloak/v13"
 
 const (
 	// KeycloakDefaultOrganizationRef references the keycloak user attribute.
