@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/go-resty/resty/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Group is a representation of a group in keycloak
@@ -129,12 +131,15 @@ type GoCloak interface {
 	UpdateUser(ctx context.Context, accessToken, realm string, user gocloak.User) error
 	AddUserToGroup(ctx context.Context, token, realm, userID, groupID string) error
 	DeleteUserFromGroup(ctx context.Context, token, realm, userID, groupID string) error
+
+	GetRequestWithBearerAuth(ctx context.Context, token string) *resty.Request
 }
 
 // Client interacts with the Keycloak API
 type Client struct {
 	Client GoCloak
 
+	Host  string
 	Realm string
 	// LoginRealm is used for the client to authenticate against keycloak. If not set Realm is used.
 	LoginRealm string
@@ -152,6 +157,7 @@ func NewClient(host, realm, username, password string) Client {
 	return Client{
 		Client:   gocloak.NewClient(host),
 		Realm:    realm,
+		Host:     strings.TrimRight(host, "/"),
 		Username: username,
 		Password: password,
 	}
@@ -272,8 +278,9 @@ func (c Client) DeleteGroup(ctx context.Context, path ...string) error {
 	return c.Client.DeleteGroup(ctx, token.AccessToken, c.Realm, *found.ID)
 }
 
-// ListGroups returns all Keycloak groups in the realm.
-// This is potentially very expensive, as it needs to iterate over all groups to get their members.
+// ListGroups returns all top-level Keycloak groups in the realm and their direct children.
+// More deeply nested children are not returned.
+// This is potentially very expensive, as it needs to iterate over all groups to get their members and sub groups.
 func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 	token, err := c.login(ctx)
 	if err != nil {
@@ -284,6 +291,20 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 	groups, err := c.Client.GetGroups(ctx, token.AccessToken, c.Realm, defaultParams)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, g := range groups {
+		logger := log.FromContext(ctx)
+		subgroups, err := c.getChildGroups(ctx, token, *g.ID)
+		if err != nil {
+			apiErr, ok := err.(*gocloak.APIError)
+			if !ok || apiErr.Code != 404 {
+				return nil, fmt.Errorf("failed to fetch sub groups: %w", err)
+			}
+			logger.Info("Could not fetch sub groups with error 404 - assuming Keycloak 22 API", "error", err, "group", g.Name)
+		} else {
+			g.SubGroups = &subgroups
+		}
 	}
 
 	rootGroups := c.filterTreeWithRoot(groups)
@@ -356,6 +377,54 @@ func (c Client) getGroup(ctx context.Context, token *gocloak.JWT, toSearch Group
 		g[i] = *groups[i]
 	}
 	return find(g), nil
+}
+
+func (c Client) getChildGroups(ctx context.Context, token *gocloak.JWT, groupID string) ([]gocloak.Group, error) {
+	var result []*gocloak.Group
+	childGroupsUrl := strings.Join([]string{c.Host, "admin", "realms", c.Realm, "groups", groupID, "children"}, "/")
+	resp, err := c.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
+		SetResult(&result).
+		Get(childGroupsUrl)
+
+	if err != nil {
+		return nil, &gocloak.APIError{
+			Code:    0,
+			Message: "could not retrieve child groups",
+			Type:    gocloak.ParseAPIErrType(err),
+		}
+	}
+
+	if resp == nil {
+		return nil, &gocloak.APIError{
+			Message: "empty response",
+			Type:    gocloak.ParseAPIErrType(err),
+		}
+	}
+
+	if resp.IsError() {
+		var msg string
+
+		if e, ok := resp.Error().(*gocloak.HTTPErrorResponse); ok && e.NotEmpty() {
+			msg = fmt.Sprintf("%s: %s", resp.Status(), e)
+		} else {
+			msg = resp.Status()
+		}
+
+		return nil, &gocloak.APIError{
+			Code:    resp.StatusCode(),
+			Message: msg,
+			Type:    gocloak.ParseAPIErrType(err),
+		}
+	}
+
+	groupList := make([]gocloak.Group, len(result))
+
+	for i := 0; i < len(result); i++ {
+		groupList[i] = *result[i]
+
+	}
+
+	return groupList, nil
 }
 
 func (c Client) getGroupAndMembers(ctx context.Context, token *gocloak.JWT, toFind Group) (*gocloak.Group, []*gocloak.User, error) {

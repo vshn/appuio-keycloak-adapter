@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gocloak "github.com/Nerzal/gocloak/v13"
+	resty "github.com/go-resty/resty/v2"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -135,6 +136,20 @@ func (m *MockGoCloak) GetGroups(ctx context.Context, accessToken, realm string, 
 func (mr *MockGoCloakMockRecorder) GetGroups(ctx, accessToken, realm, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGroups", reflect.TypeOf((*MockGoCloak)(nil).GetGroups), ctx, accessToken, realm, params)
+}
+
+// GetRequestWithBearerAuth mocks base method.
+func (m *MockGoCloak) GetRequestWithBearerAuth(ctx context.Context, token string) *resty.Request {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRequestWithBearerAuth", ctx, token)
+	ret0, _ := ret[0].(*resty.Request)
+	return ret0
+}
+
+// GetRequestWithBearerAuth indicates an expected call of GetRequestWithBearerAuth.
+func (mr *MockGoCloakMockRecorder) GetRequestWithBearerAuth(ctx, token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRequestWithBearerAuth", reflect.TypeOf((*MockGoCloak)(nil).GetRequestWithBearerAuth), ctx, token)
 }
 
 // GetUsers mocks base method.
