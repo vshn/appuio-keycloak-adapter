@@ -152,6 +152,21 @@ func (mr *MockGoCloakMockRecorder) GetRequestWithBearerAuth(ctx, token interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRequestWithBearerAuth", reflect.TypeOf((*MockGoCloak)(nil).GetRequestWithBearerAuth), ctx, token)
 }
 
+// GetServerInfo mocks base method.
+func (m *MockGoCloak) GetServerInfo(ctx context.Context, accessToken string) (*gocloak.ServerInfoRepresentation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServerInfo", ctx, accessToken)
+	ret0, _ := ret[0].(*gocloak.ServerInfoRepresentation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetServerInfo indicates an expected call of GetServerInfo.
+func (mr *MockGoCloakMockRecorder) GetServerInfo(ctx, accessToken interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServerInfo", reflect.TypeOf((*MockGoCloak)(nil).GetServerInfo), ctx, accessToken)
+}
+
 // GetUsers mocks base method.
 func (m *MockGoCloak) GetUsers(ctx context.Context, accessToken, realm string, params gocloak.GetUsersParams) ([]*gocloak.User, error) {
 	m.ctrl.T.Helper()

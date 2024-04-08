@@ -140,6 +140,17 @@ func mockUpdateUser(mgc *MockGoCloak, c Client, user gocloak.User) {
 		Times(1)
 }
 
+func mockGetServerInfo(mgc *MockGoCloak, version string) {
+	mgc.EXPECT().
+		GetServerInfo(gomock.Any(), "token").
+		Return(&gocloak.ServerInfoRepresentation{
+			SystemInfo: &gocloak.SystemInfoRepresentation{
+				Version: &version,
+			},
+		}, nil).
+		Times(1)
+}
+
 func newGocloakGroup(displayName string, id string, path ...string) *gocloak.Group {
 	if len(path) == 0 {
 		panic("group must have at least one element in path")

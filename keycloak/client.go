@@ -3,11 +3,11 @@ package keycloak
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/go-resty/resty/v2"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Group is a representation of a group in keycloak
@@ -131,6 +131,7 @@ type GoCloak interface {
 	UpdateUser(ctx context.Context, accessToken, realm string, user gocloak.User) error
 	AddUserToGroup(ctx context.Context, token, realm, userID, groupID string) error
 	DeleteUserFromGroup(ctx context.Context, token, realm, userID, groupID string) error
+	GetServerInfo(ctx context.Context, accessToken string) (*gocloak.ServerInfoRepresentation, error)
 
 	GetRequestWithBearerAuth(ctx context.Context, token string) *resty.Request
 }
@@ -293,16 +294,22 @@ func (c Client) ListGroups(ctx context.Context) ([]Group, error) {
 		return nil, err
 	}
 
-	for _, g := range groups {
-		logger := log.FromContext(ctx)
-		subgroups, err := c.getChildGroups(ctx, token, *g.ID)
-		if err != nil {
-			apiErr, ok := err.(*gocloak.APIError)
-			if !ok || apiErr.Code != 404 {
+	serverInfo, err := c.Client.GetServerInfo(ctx, token.AccessToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch version information: %w", err)
+	}
+
+	majorVersion, err := strconv.Atoi(strings.Split(*serverInfo.SystemInfo.Version, ".")[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse version information: %w", err)
+	}
+
+	if majorVersion >= 23 {
+		for _, g := range groups {
+			subgroups, err := c.getChildGroups(ctx, token, *g.ID)
+			if err != nil {
 				return nil, fmt.Errorf("failed to fetch sub groups: %w", err)
 			}
-			logger.Info("Could not fetch sub groups with error 404 - assuming Keycloak 22 API", "error", err, "group", g.Name)
-		} else {
 			g.SubGroups = &subgroups
 		}
 	}

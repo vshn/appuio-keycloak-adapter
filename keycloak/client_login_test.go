@@ -34,6 +34,7 @@ func TestLogin(t *testing.T) {
 		Return(nil).
 		AnyTimes()
 
+	mockGetServerInfo(mKeycloak, "22.0.0")
 	mockListGroups(mKeycloak, c, []*gocloak.Group{})
 
 	_, err := c.ListGroups(context.Background())
@@ -64,6 +65,7 @@ func TestLogin_WithLoginRealm(t *testing.T) {
 		Return(nil).
 		AnyTimes()
 
+	mockGetServerInfo(mKeycloak, "22.0.0")
 	mockListGroups(mKeycloak, c, []*gocloak.Group{})
 
 	_, err := c.ListGroups(context.Background())
