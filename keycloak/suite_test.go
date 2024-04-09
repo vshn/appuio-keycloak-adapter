@@ -3,10 +3,12 @@ package keycloak_test
 import (
 	"strings"
 
+	"github.com/go-resty/resty/v2"
 	. "github.com/vshn/appuio-keycloak-adapter/keycloak"
 
 	gocloak "github.com/Nerzal/gocloak/v13"
 	gomock "github.com/golang/mock/gomock"
+	"github.com/jarcoal/httpmock"
 )
 
 func mockLogin(mgc *MockGoCloak, c Client) {
@@ -32,6 +34,13 @@ func mockListGroups(mgc *MockGoCloak, c Client, groups []*gocloak.Group) {
 		}).
 		Return(groups, nil).
 		Times(1)
+}
+
+func mockKeycloakSubgroups(mgc *MockGoCloak, rst *resty.Client, times int) {
+	mgc.EXPECT().
+		GetRequestWithBearerAuth(gomock.Any(), "token").
+		Return(rst.NewRequest()).
+		Times(times)
 }
 
 func mockGetGroups(mgc *MockGoCloak, c Client, groupName string, groups []*gocloak.Group) {
@@ -131,6 +140,17 @@ func mockUpdateUser(mgc *MockGoCloak, c Client, user gocloak.User) {
 		Times(1)
 }
 
+func mockGetServerInfo(mgc *MockGoCloak, version string) {
+	mgc.EXPECT().
+		GetServerInfo(gomock.Any(), "token").
+		Return(&gocloak.ServerInfoRepresentation{
+			SystemInfo: &gocloak.SystemInfoRepresentation{
+				Version: &version,
+			},
+		}, nil).
+		Times(1)
+}
+
 func newGocloakGroup(displayName string, id string, path ...string) *gocloak.Group {
 	if len(path) == 0 {
 		panic("group must have at least one element in path")
@@ -147,4 +167,22 @@ func newGocloakGroup(displayName string, id string, path ...string) *gocloak.Gro
 		Path:       gocloak.StringP("/" + strings.Join(path, "/")),
 		Attributes: attributes,
 	}
+}
+
+func setupHttpMock() *resty.Client {
+	rst := resty.New()
+	httpmock.ActivateNonDefault(rst.GetClient())
+	return rst
+}
+
+func setupChildGroupErrorResponse(c Client, groupID string) {
+	httpmock.RegisterResponder("GET", getChildGroupUrl(c.Host, c.Realm, groupID), httpmock.NewStringResponder(404, ""))
+}
+
+func setupChildGroupResponse(c Client, groupID string, childGroups []gocloak.Group) {
+	httpmock.RegisterResponder("GET", getChildGroupUrl(c.Host, c.Realm, groupID), httpmock.NewJsonResponderOrPanic(200, childGroups))
+}
+
+func getChildGroupUrl(host, realm, groupID string) string {
+	return strings.Join([]string{host, "admin", "realms", realm, "groups", groupID, "children"}, "/")
 }
