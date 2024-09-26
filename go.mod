@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
-	github.com/appuio/control-api v0.33.0
+	github.com/appuio/control-api v0.33.4
 	github.com/golang/mock v1.6.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/stretchr/testify v1.9.0
