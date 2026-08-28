@@ -12,8 +12,8 @@ github.com/alessio/shellescape v1.4.1 h1:V7yhSDDn8LP4lc4jS8pFkt0zCnzVJlG5JXy9BVK
 github.com/alessio/shellescape v1.4.1/go.mod h1:PZAiSCk0LJaZkiCSkPv8qIobYglO3FPpyFjDCtHLS30=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/antlr/antlr4/runtime/Go/antlr v1.4.10 h1:yL7+Jz0jTC6yykIK/Wh74gnTJnrGr5AyrNMXuA0gves=
-github.com/appuio/control-api v0.33.0 h1:clbZvEOrxBzu77Tgjn5XOwuZGERL5H0fAz9nols5rng=
-github.com/appuio/control-api v0.33.0/go.mod h1:Nvy0YcOw9PuQ+uFMWqWH0j3t47ckkPE+IeR8Fz/oAjU=
+github.com/appuio/control-api v0.33.4 h1:iRM+xPUEzcXx/WevaF4PV+3+SgBG75uYa497x4PfvM4=
+github.com/appuio/control-api v0.33.4/go.mod h1:Nvy0YcOw9PuQ+uFMWqWH0j3t47ckkPE+IeR8Fz/oAjU=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
